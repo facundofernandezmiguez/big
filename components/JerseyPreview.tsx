@@ -318,15 +318,35 @@ export default function JerseyPreview({ config, className }: JerseyPreviewProps)
           // eslint-disable-next-line @next/next/no-img-element
           <img src={pair.frontUrl} alt={labelFront} className="w-full h-auto" draggable={false} style={imgStyle} />
         ) : placeholder}
-        {config.shieldUrl && (
+        {config.shieldUrl && config.showShield && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={config.shieldUrl}
             alt="Escudo"
             className="absolute object-contain pointer-events-none"
-            style={{ left: "60%", top: "26%", width: "18%", height: "18%" }}
+            style={{ left: config.shieldPosition === "left" ? "28%" : config.shieldPosition === "center" ? "46%" : "64%", top: "26%", width: "22%", height: "22%" }}
             draggable={false}
           />
+        )}
+        {config.showFrontNumber && config.number && (
+          <div
+            className="absolute text-center leading-none pointer-events-none"
+            style={{
+              left: config.frontNumberPosition === "left" ? "28%" : config.frontNumberPosition === "center" ? "46%" : "64%",
+              top: "26%", // Align with shield top
+              width: "22%", // Same width as shield container
+              height: "22%", // Same height to center vertically
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "clamp(1.6rem, 5vw, 2.5rem)", // Larger font size for front
+              color: textColor,
+              fontFamily: "'Impact', 'Arial Black', sans-serif",
+              transform: "scaleY(1.15)",
+            }}
+          >
+            {config.number}
+          </div>
         )}
         <span className="mt-1 text-[10px] font-bold tracking-[0.15em] uppercase text-black/40">
           {labelFront}
@@ -339,12 +359,12 @@ export default function JerseyPreview({ config, className }: JerseyPreviewProps)
           // eslint-disable-next-line @next/next/no-img-element
           <img src={pair.backUrl} alt={labelBack} className="w-full h-auto" draggable={false} style={imgStyle} />
         ) : placeholder}
-        {config.number && (
+        {config.showNumber && config.number && (
           <div
             className="absolute inset-x-0 text-center leading-none pointer-events-none"
             style={{
-              top: "40%",
-              fontSize: "clamp(1.4rem, 8vw, 4rem)",
+              top: "51%", // Moved up slightly from 55%
+              fontSize: "clamp(2rem, 12vw, 5.5rem)", // Made slightly larger again
               color: textColor,
               fontFamily: "'Impact', 'Arial Black', sans-serif",
               transform: "scaleY(1.15)",
@@ -357,13 +377,20 @@ export default function JerseyPreview({ config, className }: JerseyPreviewProps)
           <div
             className="absolute inset-x-0 text-center font-black tracking-wider pointer-events-none"
             style={{
-              top: "62%",
+              top: "77%",
               fontSize: "clamp(0.5rem, 2.2vw, 1.2rem)",
               color: textColor,
-              fontFamily: "'Arial Black', sans-serif",
+              fontFamily: config.teamNameFont === "bebas" ? "'Bebas Neue', 'Arial Black', sans-serif" : 
+                          config.teamNameFont === "roboto" ? "'Roboto Condensed', 'Arial', sans-serif" : 
+                          config.teamNameFont === "impact" ? "'Impact', 'Arial Black', sans-serif" : 
+                          config.teamNameFont === "montserrat" ? "'Montserrat', 'Arial Black', sans-serif" : 
+                          config.teamNameFont === "oswald" ? "'Oswald', 'Arial Black', sans-serif" : 
+                          config.teamNameFont === "teko" ? "'Teko', 'Arial Black', sans-serif" : 
+                          config.teamNameFont === "anton" ? "'Anton', 'Arial Black', sans-serif" : 
+                          "'Arial Black', sans-serif",
             }}
           >
-            {config.teamName.toUpperCase()}
+            {config.teamName}
           </div>
         )}
         <span className="mt-1 text-[10px] font-bold tracking-[0.15em] uppercase text-black/40">

@@ -17,8 +17,14 @@ export default function JerseyCustomizer() {
     letterColor: "#f5f5f5",
     letterColorBack: "#111111",
     shieldUrl: null,
+    showShield: true,
+    shieldPosition: "right",
     number: "10",
+    showNumber: true,
+    showFrontNumber: false,
+    frontNumberPosition: "left",
     teamName: "MI EQUIPO",
+    teamNameFont: "arial-black",
   });
 
   const [shieldFileName, setShieldFileName] = useState<string | null>(null);
@@ -145,36 +151,74 @@ export default function JerseyCustomizer() {
       ctx.drawImage(fsImg, cells[2].x, cells[2].y, CW, CH);
       ctx.drawImage(bsImg, cells[3].x, cells[3].y, CW, CH);
 
-      // Shield on both fronts
-      if (config.shieldUrl) {
+      // Shield on both fronts (only if enabled)
+      if (config.shieldUrl && config.showShield) {
         try {
           const shield = await loadImg(config.shieldUrl);
-          const sw2 = Math.round(CW * 0.18), sh2 = Math.round(CH * 0.18);
-          ctx.drawImage(shield, cells[0].x + CW * 0.60, cells[0].y + CH * 0.26, sw2, sh2);
-          ctx.drawImage(shield, cells[2].x + CW * 0.60, cells[2].y + CH * 0.26, sw2, sh2);
+          // Made shield slightly larger (was 0.18 -> 0.22)
+          const sw2 = Math.round(CW * 0.22), sh2 = Math.round(CH * 0.22);
+          // Fixed positions: left -> 28%, center -> 46%, right -> 64% 
+          const shieldX = config.shieldPosition === "left" ? CW * 0.28 : config.shieldPosition === "center" ? CW * 0.46 : CW * 0.64;
+          ctx.drawImage(shield, cells[0].x + shieldX, cells[0].y + CH * 0.26, sw2, sh2);
+          ctx.drawImage(shield, cells[2].x + shieldX, cells[2].y + CH * 0.26, sw2, sh2);
         } catch { /* skip */ }
       }
 
-      // Number + team name on both backs
+      // Front Number on both fronts
+      if (config.showFrontNumber && config.number) {
+        const drawFrontNumber = (cell: { x: number; y: number }, tc: string) => {
+          ctx.save();
+          // Fixed positions for front number: left -> 39%, center -> 57%, right -> 75% (center points)
+          // 57% center point gives 46% start X for a 22% width element (46 + 11 = 57)
+          const cx = cell.x + (config.frontNumberPosition === "left" ? CW * 0.39 : config.frontNumberPosition === "center" ? CW * 0.57 : CW * 0.75);
+          // Made font larger (was 0.12 -> 0.16) to match larger shield
+          ctx.font = `900 ${Math.round(CH * 0.16)}px 'Impact', 'Arial Black', sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = tc;
+          // Scale slightly taller like the back number
+          ctx.translate(cx, cell.y + CH * 0.37); // Center Y of the shield area (adjusted slightly for larger size)
+          ctx.scale(1, 1.15);
+          ctx.fillText(config.number, 0, 0);
+          ctx.restore();
+        };
+        drawFrontNumber(cells[0], config.letterColor);
+        drawFrontNumber(cells[2], config.letterColorBack);
+      }
+
+      // Number + team name on both backs (only number if enabled, moved lower)
       const drawText = (cell: { x: number; y: number }, tc: string) => {
         const cx = cell.x + CW / 2;
-        if (config.number) {
+        const fontMap: Record<JerseyConfig["teamNameFont"], string> = {
+          "arial-black": "'Arial Black', Arial, sans-serif",
+          "impact": "'Impact', 'Arial Black', sans-serif",
+          "bebas": "'Bebas Neue', 'Arial Black', sans-serif",
+          "roboto": "'Roboto Condensed', 'Arial', sans-serif",
+          "montserrat": "'Montserrat', 'Arial Black', sans-serif",
+          "oswald": "'Oswald', 'Arial Black', sans-serif",
+          "teko": "'Teko', 'Arial Black', sans-serif",
+          "anton": "'Anton', 'Arial Black', sans-serif",
+        };
+        const teamFont = fontMap[config.teamNameFont] || fontMap["arial-black"];
+        if (config.showNumber && config.number) {
           ctx.save();
-          ctx.font = `900 ${Math.round(CH * 0.16)}px 'Impact', 'Arial Black', sans-serif`;
+          // Larger font (was 0.18 -> 0.22)
+          ctx.font = `900 ${Math.round(CH * 0.22)}px 'Impact', 'Arial Black', sans-serif`;
           ctx.textAlign = "center";
           ctx.textBaseline = "top";
           ctx.fillStyle = tc;
-          ctx.translate(cx, cell.y + CH * 0.40);
+          // Position
+          ctx.translate(cx, cell.y + CH * 0.51);
           ctx.scale(1, 1.15);
           ctx.fillText(config.number, 0, 0);
           ctx.restore();
         }
         if (config.teamName) {
-          ctx.font = `900 ${Math.round(CH * 0.05)}px 'Arial Black', sans-serif`;
+          ctx.font = `900 ${Math.round(CH * 0.05)}px ${teamFont}`;
           ctx.textAlign = "center";
           ctx.textBaseline = "top";
           ctx.fillStyle = tc;
-          ctx.fillText(config.teamName.toUpperCase(), cx, cell.y + CH * 0.62);
+          ctx.fillText(config.teamName, cx, cell.y + CH * 0.77);
         }
       };
       drawText(cells[1], config.letterColor);
@@ -385,6 +429,55 @@ export default function JerseyCustomizer() {
                   ⚠ {removeBgError}. Se usó la imagen original.
                 </p>
               )}
+
+              {/* Shield Options - only visible when shield is loaded */}
+              {config.shieldUrl && (
+                <div className="mt-4 space-y-3">
+                  {/* Show/Hide Shield */}
+                  <div className="flex items-center justify-between bg-[#f7f7f7] border border-black/8 p-3">
+                    <span className="text-[11px] font-semibold tracking-widest uppercase text-black/70">
+                      Mostrar escudo
+                    </span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.showShield}
+                        onChange={(e) => setConfig((prev) => ({ ...prev, showShield: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-10 h-6 bg-red-500 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                    </label>
+                  </div>
+
+                  {/* Shield Position */}
+                  {config.showShield && (
+                    <div className="bg-[#f7f7f7] border border-black/8 p-3">
+                      <span className="text-[11px] font-semibold tracking-widest uppercase text-black/70 block mb-2">
+                        Posición del escudo
+                      </span>
+                      <div className="flex gap-2">
+                        {[
+                          { value: "left", label: "Izquierda" },
+                          { value: "center", label: "Centro" },
+                          { value: "right", label: "Derecha" },
+                        ].map((pos) => (
+                          <button
+                            key={pos.value}
+                            onClick={() => setConfig((prev) => ({ ...prev, shieldPosition: pos.value as "left" | "center" | "right" }))}
+                            className={`flex-1 py-2 px-2 text-[11px] font-medium uppercase tracking-wide border transition-colors ${
+                              config.shieldPosition === pos.value
+                                ? "bg-black text-white border-black"
+                                : "bg-white text-black/60 border-black/20 hover:border-black/40"
+                            }`}
+                          >
+                            {pos.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <Separator className="bg-black/8" />
@@ -395,33 +488,97 @@ export default function JerseyCustomizer() {
                 04 — Número y nombre
               </h2>
               <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <Label
-                    htmlFor="number"
-                    className="text-[11px] font-semibold tracking-widest uppercase text-black/45"
-                  >
-                    Número
-                  </Label>
-                  <Input
-                    id="number"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={3}
-                    placeholder="Ej: 10"
-                    value={config.number}
-                    onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        number: e.target.value.replace(/[^0-9]/g, ""),
-                      }))
-                    }
-                    className="rounded-none border-black/20 focus-visible:ring-0 focus-visible:border-black text-sm h-10"
-                  />
+                {/* Number with toggle */}
+                <div className="flex flex-col gap-2 bg-[#f7f7f7] border border-black/8 p-3">
+                  <div className="flex items-center justify-between">
+                    <Label
+                      htmlFor="number"
+                      className="text-[11px] font-semibold tracking-widest uppercase text-black/70"
+                    >
+                      Número en la espalda
+                    </Label>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.showNumber}
+                        onChange={(e) => setConfig((prev) => ({ ...prev, showNumber: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-10 h-6 bg-red-500 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                    </label>
+                  </div>
+                  {config.showNumber && (
+                    <Input
+                      id="number"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={3}
+                      placeholder="Ej: 10"
+                      value={config.number}
+                      onChange={(e) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          number: e.target.value.replace(/[^0-9]/g, ""),
+                        }))
+                      }
+                      className="rounded-none border-black/20 focus-visible:ring-0 focus-visible:border-black text-sm h-10 bg-white"
+                    />
+                  )}
                 </div>
-                <div className="flex flex-col gap-1.5">
+
+                {/* Front Number options */}
+                <div className="flex flex-col gap-2 bg-[#f7f7f7] border border-black/8 p-3">
+                  <div className="flex items-center justify-between">
+                    <Label
+                      className="text-[11px] font-semibold tracking-widest uppercase text-black/70"
+                    >
+                      Número en el frente
+                    </Label>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.showFrontNumber}
+                        onChange={(e) => setConfig((prev) => ({ ...prev, showFrontNumber: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-10 h-6 bg-red-500 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                    </label>
+                  </div>
+
+                  {/* Front Number Position */}
+                  {config.showFrontNumber && (
+                    <div className="mt-2 pt-2 border-t border-black/10">
+                      <span className="text-[11px] font-semibold tracking-widest uppercase text-black/60 block mb-2">
+                        Posición del número (Frente)
+                      </span>
+                      <div className="flex gap-2">
+                        {[
+                          { value: "left", label: "Izquierda" },
+                          { value: "center", label: "Centro" },
+                          { value: "right", label: "Derecha" },
+                        ].map((pos) => (
+                          <button
+                            key={pos.value}
+                            onClick={() => setConfig((prev) => ({ ...prev, frontNumberPosition: pos.value as "left" | "center" | "right" }))}
+                            className={`flex-1 py-2 px-2 text-[11px] font-medium uppercase tracking-wide border transition-colors ${
+                              config.frontNumberPosition === pos.value
+                                ? "bg-black text-white border-black"
+                                : "bg-white text-black/60 border-black/20 hover:border-black/40"
+                            }`}
+                          >
+                            {pos.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Team Name with Font Selector */}
+                <div className="flex flex-col gap-2 bg-[#f7f7f7] border border-black/8 p-3">
                   <Label
                     htmlFor="teamName"
-                    className="text-[11px] font-semibold tracking-widest uppercase text-black/45"
+                    className="text-[11px] font-semibold tracking-widest uppercase text-black/70"
                   >
                     Nombre del equipo
                   </Label>
@@ -434,11 +591,55 @@ export default function JerseyCustomizer() {
                     onChange={(e) =>
                       setConfig((prev) => ({ ...prev, teamName: e.target.value }))
                     }
-                    className="rounded-none border-black/20 focus-visible:ring-0 focus-visible:border-black text-sm h-10"
+                    className="rounded-none border-black/20 focus-visible:ring-0 focus-visible:border-black text-sm h-10 bg-white"
                   />
                   <p className="text-[11px] text-black/30">
                     {config.teamName.length}/20 caracteres
                   </p>
+
+                  {/* Font Selector Dropdown */}
+                  <div className="mt-2 pt-3 border-t border-black/10">
+                    <Label
+                      htmlFor="teamNameFont"
+                      className="text-[11px] font-semibold tracking-widest uppercase text-black/60 block mb-2"
+                    >
+                      Tipografía
+                    </Label>
+                    <div className="relative">
+                      <select
+                        id="teamNameFont"
+                        value={config.teamNameFont}
+                        onChange={(e) => setConfig((prev) => ({ ...prev, teamNameFont: e.target.value as JerseyConfig["teamNameFont"] }))}
+                        className="w-full appearance-none rounded-none border border-black/20 bg-white px-3 py-2.5 text-sm outline-none focus-visible:border-black focus-visible:ring-0"
+                        style={{
+                          fontFamily: [
+                            { value: "arial-black", style: "'Arial Black', Arial, sans-serif" },
+                            { value: "impact", style: "'Impact', 'Arial Black', sans-serif" },
+                            { value: "bebas", style: "'Bebas Neue', sans-serif" },
+                            { value: "roboto", style: "'Roboto Condensed', sans-serif" },
+                            { value: "montserrat", style: "'Montserrat', sans-serif" },
+                            { value: "oswald", style: "'Oswald', sans-serif" },
+                            { value: "teko", style: "'Teko', sans-serif" },
+                            { value: "anton", style: "'Anton', sans-serif" },
+                          ].find(f => f.value === config.teamNameFont)?.style
+                        }}
+                      >
+                        <option value="arial-black" style={{ fontFamily: "'Arial Black', Arial, sans-serif" }}>Arial Black</option>
+                        <option value="impact" style={{ fontFamily: "'Impact', 'Arial Black', sans-serif" }}>Impact</option>
+                        <option value="bebas" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>Bebas Neue</option>
+                        <option value="roboto" style={{ fontFamily: "'Roboto Condensed', sans-serif" }}>Roboto Condensed</option>
+                        <option value="montserrat" style={{ fontFamily: "'Montserrat', sans-serif" }}>Montserrat</option>
+                        <option value="oswald" style={{ fontFamily: "'Oswald', sans-serif" }}>Oswald</option>
+                        <option value="teko" style={{ fontFamily: "'Teko', sans-serif" }}>Teko</option>
+                        <option value="anton" style={{ fontFamily: "'Anton', sans-serif" }}>Anton</option>
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-black/50">
+                        <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                          <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
