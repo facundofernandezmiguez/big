@@ -47,6 +47,9 @@ const bebasNeue = Bebas_Neue({
 export const metadata: Metadata = {
   title: "BIG Sportswear — Personalizá tu remera",
   description: "Personalizá tu top deportivo con el color, escudo y nombre de tu equipo.",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

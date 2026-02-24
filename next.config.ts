@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   reactCompiler: true,
+  // Using default Turbopack settings which should handle WASM automatically
 };
 
 export default nextConfig;
