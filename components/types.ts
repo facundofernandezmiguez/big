@@ -6,6 +6,7 @@ export interface JerseyConfig {
   shieldUrl: string | null;
   showShield: boolean;
   shieldPosition: "center" | "left" | "right";
+  shieldSize: number;
   number: string;
   showNumber: boolean;
   showFrontNumber: boolean;

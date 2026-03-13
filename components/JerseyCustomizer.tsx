@@ -20,6 +20,7 @@ export default function JerseyCustomizer() {
     shieldUrl: null,
     showShield: true,
     shieldPosition: "right",
+    shieldSize: 22,
     number: "10",
     showNumber: true,
     showFrontNumber: false,
@@ -164,12 +165,17 @@ export default function JerseyCustomizer() {
       if (config.shieldUrl && config.showShield) {
         try {
           const shield = await loadImg(config.shieldUrl);
-          // Made shield slightly larger (was 0.18 -> 0.22)
-          const sw2 = Math.round(CW * 0.22), sh2 = Math.round(CH * 0.22);
-          // Fixed positions: left -> 28%, center -> 46%, right -> 64% 
-          const shieldX = config.shieldPosition === "left" ? CW * 0.28 : config.shieldPosition === "center" ? CW * 0.46 : CW * 0.64;
-          ctx.drawImage(shield, cells[0].x + shieldX, cells[0].y + CH * 0.26, sw2, sh2);
-          ctx.drawImage(shield, cells[2].x + shieldX, cells[2].y + CH * 0.26, sw2, sh2);
+          const shieldSizeRatio = config.shieldSize / 100;
+          const sw2 = Math.round(CW * shieldSizeRatio), sh2 = Math.round(CW * shieldSizeRatio);
+          // Container positions match preview: 15%, 32.5%, 50.5% with 50% container width
+          const containerLeft = config.shieldPosition === "left" ? CW * 0.15 : config.shieldPosition === "center" ? CW * 0.325 : CW * 0.505;
+          const containerWidth = CW * 0.5;
+          const containerHeight = CW * 0.5; // Use CW (width) to match preview's 50% which is relative to image width
+          // Center the shield within the container
+          const shieldX = containerLeft + (containerWidth - sw2) / 2;
+          const shieldY = CH * 0.12 + (containerHeight - sh2) / 2; // top: 12% + center within 50% container
+          ctx.drawImage(shield, cells[0].x + shieldX, cells[0].y + shieldY, sw2, sh2);
+          ctx.drawImage(shield, cells[2].x + shieldX, cells[2].y + shieldY, sw2, sh2);
         } catch { /* skip */ }
       }
 
@@ -323,10 +329,17 @@ export default function JerseyCustomizer() {
       if (config.shieldUrl && config.showShield) {
         try {
           const shield = await loadImg(config.shieldUrl);
-          const sw2 = Math.round(CW * 0.22), sh2 = Math.round(CH * 0.22);
-          const shieldX = config.shieldPosition === "left" ? CW * 0.28 : config.shieldPosition === "center" ? CW * 0.46 : CW * 0.64;
-          ctx.drawImage(shield, cells[0].x + shieldX, cells[0].y + CH * 0.26, sw2, sh2);
-          ctx.drawImage(shield, cells[2].x + shieldX, cells[2].y + CH * 0.26, sw2, sh2);
+          const shieldSizeRatio = config.shieldSize / 100;
+          const sw2 = Math.round(CW * shieldSizeRatio), sh2 = Math.round(CW * shieldSizeRatio);
+          // Container positions match preview: 15%, 32.5%, 50.5% with 50% container width
+          const containerLeft = config.shieldPosition === "left" ? CW * 0.15 : config.shieldPosition === "center" ? CW * 0.325 : CW * 0.505;
+          const containerWidth = CW * 0.5;
+          const containerHeight = CW * 0.5; // Use CW (width) to match preview's 50% which is relative to image width
+          // Center the shield within the container
+          const shieldX = containerLeft + (containerWidth - sw2) / 2;
+          const shieldY = CH * 0.12 + (containerHeight - sh2) / 2; // top: 12% + center within 50% container
+          ctx.drawImage(shield, cells[0].x + shieldX, cells[0].y + shieldY, sw2, sh2);
+          ctx.drawImage(shield, cells[2].x + shieldX, cells[2].y + shieldY, sw2, sh2);
         } catch { /* skip */ }
       }
 
@@ -656,6 +669,23 @@ export default function JerseyCustomizer() {
                           </button>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Shield Size Slider */}
+                  {config.showShield && (
+                    <div className="bg-[#f7f7f7] border border-black/8 p-4 sm:p-3">
+                      <span className="text-[12px] sm:text-[11px] font-semibold tracking-widest uppercase text-black/70 block mb-3 sm:mb-2">
+                        Tamaño del escudo
+                      </span>
+                      <input
+                        type="range"
+                        min="12"
+                        max="70"
+                        value={config.shieldSize}
+                        onChange={(e) => setConfig((prev) => ({ ...prev, shieldSize: parseInt(e.target.value) }))}
+                        className="w-full h-2 bg-black/10 rounded-lg appearance-none cursor-pointer accent-black"
+                      />
                     </div>
                   )}
                 </div>

@@ -319,14 +319,24 @@ export default function JerseyPreview({ config, className }: JerseyPreviewProps)
           <img src={pair.frontUrl} alt={labelFront} className="w-full h-auto" draggable={false} style={imgStyle} />
         ) : placeholder}
         {config.shieldUrl && config.showShield && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={config.shieldUrl}
-            alt="Escudo"
-            className="absolute object-contain pointer-events-none"
-            style={{ left: config.shieldPosition === "left" ? "28%" : config.shieldPosition === "center" ? "46%" : "64%", top: "26%", width: "22%", height: "22%" }}
-            draggable={false}
-          />
+          <div
+            className="absolute flex items-center justify-center pointer-events-none"
+            style={{
+              left: config.shieldPosition === "left" ? "15%" : config.shieldPosition === "center" ? "32.5%" : "50.5%",
+              top: "12%",
+              width: "50%",
+              height: "50%",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={config.shieldUrl}
+              alt="Escudo"
+              className="object-contain w-full h-full"
+              style={{ width: `${config.shieldSize / 50 * 100}%`, height: `${config.shieldSize / 50 * 100}%` }}
+              draggable={false}
+            />
+          </div>
         )}
         {config.showFrontNumber && config.number && (
           <div
