@@ -10,7 +10,6 @@ import JerseyPreview from "./JerseyPreview";
 import { isLight, recolorPixels } from "./JerseyPreview";
 import { JerseyConfig } from "./types";
 import { removeBackground } from "@imgly/background-removal";
-import html2canvas from "html2canvas";
 
 export default function JerseyCustomizer() {
   const [config, setConfig] = useState<JerseyConfig>({
@@ -98,49 +97,336 @@ export default function JerseyCustomizer() {
   };
 
   const handleDownload = useCallback(async () => {
-    if (!previewRef.current) {
-      console.error("previewRef is not available");
-      alert("Error: No se pudo acceder al preview. Por favor recarga la página.");
-      return;
-    }
-
-    try {
-      console.log("Starting html2canvas capture...");
-      const canvas = await html2canvas(previewRef.current, {
-        backgroundColor: "#ffffff",
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: true,
+    const loadImg = (src: string): Promise<HTMLImageElement> =>
+      new Promise((res, rej) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => res(img);
+        img.onerror = rej;
+        img.src = src;
       });
 
-      console.log("Canvas captured successfully, dimensions:", canvas.width, "x", canvas.height);
-      
+    try {
+      const templateImg = await loadImg("/frente.jpg");
+
+      // Stage full image and erase baked-in elements
+      const staging = document.createElement("canvas");
+      staging.width = templateImg.naturalWidth;
+      staging.height = templateImg.naturalHeight;
+      const sCtx = staging.getContext("2d")!;
+      sCtx.drawImage(templateImg, 0, 0);
+      sCtx.fillStyle = "#000000";
+      sCtx.fillRect(135, 112, 80, 63);
+
+      const halfW = Math.round(templateImg.naturalWidth / 2);
+      const backSw = templateImg.naturalWidth - halfW;
+      const outW = Math.max(halfW, backSw);
+      const imgH = templateImg.naturalHeight;
+
+      const fpUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.color, outW, imgH, config.secondaryColor);
+      const bpUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.color, outW, imgH, config.secondaryColor);
+      const fsUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.secondaryColor, outW, imgH, config.color);
+      const bsUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.secondaryColor, outW, imgH, config.color);
+
+      const fpImg = await loadImg(fpUrl);
+      const bpImg = await loadImg(bpUrl);
+      const fsImg = await loadImg(fsUrl);
+      const bsImg = await loadImg(bsUrl);
+
+      // Layout: 2x2 grid
+      const CW = 250;
+      const ratio = fpImg.naturalHeight / fpImg.naturalWidth;
+      const CH = Math.round(CW * ratio);
+      const GAP = 24, PAD = 30, LABEL_H = 20;
+      const W = PAD * 2 + CW * 2 + GAP;
+      const H = PAD * 2 + (CH + LABEL_H) * 2 + GAP;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext("2d")!;
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, W, H);
+
+      const cells = [
+        { x: PAD, y: PAD },
+        { x: PAD + CW + GAP, y: PAD },
+        { x: PAD, y: PAD + CH + LABEL_H + GAP },
+        { x: PAD + CW + GAP, y: PAD + CH + LABEL_H + GAP },
+      ];
+
+      ctx.drawImage(fpImg, cells[0].x, cells[0].y, CW, CH);
+      ctx.drawImage(bpImg, cells[1].x, cells[1].y, CW, CH);
+      ctx.drawImage(fsImg, cells[2].x, cells[2].y, CW, CH);
+      ctx.drawImage(bsImg, cells[3].x, cells[3].y, CW, CH);
+
+      // Shield on both fronts (only if enabled)
+      if (config.shieldUrl && config.showShield) {
+        try {
+          const shield = await loadImg(config.shieldUrl);
+          // Preview uses: container at left:15%/32.5%/50.5%, top:12%, width:50%, height:50%
+          // Image inside is: width/height = (shieldSize/50)*100% of container
+          const containerLeft = config.shieldPosition === "left" ? CW * 0.15 : config.shieldPosition === "center" ? CW * 0.325 : CW * 0.505;
+          const containerTop = CH * 0.12;
+          const containerWidth = CW * 0.5;
+          const containerHeight = CW * 0.5;
+          
+          // Shield size relative to container (shieldSize/50 gives us the ratio)
+          const shieldRatio = config.shieldSize / 50;
+          const shieldWidth = containerWidth * shieldRatio;
+          const shieldHeight = containerHeight * shieldRatio;
+          
+          // Center shield within container (flexbox center logic)
+          const shieldX = containerLeft + (containerWidth - shieldWidth) / 2;
+          const shieldY = containerTop + (containerHeight - shieldHeight) / 2;
+          
+          ctx.drawImage(shield, cells[0].x + shieldX, cells[0].y + shieldY, shieldWidth, shieldHeight);
+          ctx.drawImage(shield, cells[2].x + shieldX, cells[2].y + shieldY, shieldWidth, shieldHeight);
+        } catch { /* skip */ }
+      }
+
+      // Front Number on both fronts
+      if (config.showFrontNumber && config.number) {
+        const drawFrontNumber = (cell: { x: number; y: number }, tc: string) => {
+          ctx.save();
+          // Preview uses: left:28%/46%/64%, top:26%, width:22%, height:22%
+          const numLeft = config.frontNumberPosition === "left" ? CW * 0.28 : config.frontNumberPosition === "center" ? CW * 0.46 : CW * 0.64;
+          const numTop = CH * 0.26;
+          const numWidth = CW * 0.22;
+          const numHeight = CW * 0.22;
+          
+          // Center point
+          const cx = cell.x + numLeft + numWidth / 2;
+          const cy = cell.y + numTop + numHeight / 2;
+          
+          ctx.font = `900 ${Math.round(CH * 0.16)}px 'Impact', 'Arial Black', sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = tc;
+          ctx.translate(cx, cy);
+          ctx.scale(1, 1.15);
+          ctx.fillText(config.number, 0, 0);
+          ctx.restore();
+        };
+        drawFrontNumber(cells[0], config.letterColor);
+        drawFrontNumber(cells[2], config.letterColorBack);
+      }
+
+      // Number + team name on both backs
+      const drawText = (cell: { x: number; y: number }, tc: string) => {
+        const cx = cell.x + CW / 2;
+        const fontMap: Record<JerseyConfig["teamNameFont"], string> = {
+          "arial-black": "'Arial Black', Arial, sans-serif",
+          "impact": "'Impact', 'Arial Black', sans-serif",
+          "bebas": "'Bebas Neue', 'Arial Black', sans-serif",
+          "roboto": "'Roboto Condensed', 'Arial', sans-serif",
+          "montserrat": "'Montserrat', 'Arial Black', sans-serif",
+          "oswald": "'Oswald', 'Arial Black', sans-serif",
+          "teko": "'Teko', 'Arial Black', sans-serif",
+          "anton": "'Anton', 'Arial Black', sans-serif",
+        };
+        const teamFont = fontMap[config.teamNameFont] || fontMap["arial-black"];
+        if (config.showNumber && config.number) {
+          ctx.save();
+          ctx.font = `900 ${Math.round(CH * 0.22)}px 'Impact', 'Arial Black', sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.fillStyle = tc;
+          ctx.translate(cx, cell.y + CH * 0.51);
+          ctx.scale(1, 1.15);
+          ctx.fillText(config.number, 0, 0);
+          ctx.restore();
+        }
+        if (config.teamName) {
+          ctx.font = `900 ${Math.round(CH * 0.05)}px ${teamFont}`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.fillStyle = tc;
+          ctx.fillText(config.teamName, cx, cell.y + CH * 0.77);
+        }
+      };
+      drawText(cells[1], config.letterColor);
+      drawText(cells[3], config.letterColorBack);
+
+      // Labels
+      ctx.font = "bold 11px Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillStyle = "#999";
+      ctx.fillText("FRENTE", cells[0].x + CW / 2, cells[0].y + CH + 4);
+      ctx.fillText("ESPALDA", cells[1].x + CW / 2, cells[1].y + CH + 4);
+      ctx.fillText("FRENTE (DORSO)", cells[2].x + CW / 2, cells[2].y + CH + 4);
+      ctx.fillText("ESPALDA (DORSO)", cells[3].x + CW / 2, cells[3].y + CH + 4);
+
       const link = document.createElement("a");
       link.download = `big-sportswear-${config.teamName || "equipo"}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
-      
-      console.log("Download triggered successfully");
     } catch (err) {
       console.error("Download error:", err);
-      alert("Error al descargar la imagen. Por favor intenta de nuevo o contacta a soporte.");
+      alert("Error al descargar la imagen. Por favor intenta de nuevo.");
     }
-  }, [config.teamName]);
+  }, [config]);
 
   const handleWhatsAppOrder = useCallback(async () => {
-    if (!previewRef.current) return;
-    
     setIsGeneratingImage(true);
+    
+    const loadImg = (src: string): Promise<HTMLImageElement> =>
+      new Promise((res, rej) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => res(img);
+        img.onerror = rej;
+        img.src = src;
+      });
 
     try {
-      const canvas = await html2canvas(previewRef.current, {
-        backgroundColor: "#ffffff",
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-      });
+      const templateImg = await loadImg("/frente.jpg");
+
+      // Stage full image and erase baked-in elements
+      const staging = document.createElement("canvas");
+      staging.width = templateImg.naturalWidth;
+      staging.height = templateImg.naturalHeight;
+      const sCtx = staging.getContext("2d")!;
+      sCtx.drawImage(templateImg, 0, 0);
+      sCtx.fillStyle = "#000000";
+      sCtx.fillRect(135, 112, 80, 63);
+
+      const halfW = Math.round(templateImg.naturalWidth / 2);
+      const backSw = templateImg.naturalWidth - halfW;
+      const outW = Math.max(halfW, backSw);
+      const imgH = templateImg.naturalHeight;
+
+      const fpUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.color, outW, imgH, config.secondaryColor);
+      const bpUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.color, outW, imgH, config.secondaryColor);
+      const fsUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.secondaryColor, outW, imgH, config.color);
+      const bsUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.secondaryColor, outW, imgH, config.color);
+
+      const fpImg = await loadImg(fpUrl);
+      const bpImg = await loadImg(bpUrl);
+      const fsImg = await loadImg(fsUrl);
+      const bsImg = await loadImg(bsUrl);
+
+      // Layout: 2x2 grid
+      const CW = 250;
+      const ratio = fpImg.naturalHeight / fpImg.naturalWidth;
+      const CH = Math.round(CW * ratio);
+      const GAP = 24, PAD = 30, LABEL_H = 20;
+      const W = PAD * 2 + CW * 2 + GAP;
+      const H = PAD * 2 + (CH + LABEL_H) * 2 + GAP;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext("2d")!;
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, W, H);
+
+      const cells = [
+        { x: PAD, y: PAD },
+        { x: PAD + CW + GAP, y: PAD },
+        { x: PAD, y: PAD + CH + LABEL_H + GAP },
+        { x: PAD + CW + GAP, y: PAD + CH + LABEL_H + GAP },
+      ];
+
+      ctx.drawImage(fpImg, cells[0].x, cells[0].y, CW, CH);
+      ctx.drawImage(bpImg, cells[1].x, cells[1].y, CW, CH);
+      ctx.drawImage(fsImg, cells[2].x, cells[2].y, CW, CH);
+      ctx.drawImage(bsImg, cells[3].x, cells[3].y, CW, CH);
+
+      // Shield on both fronts (only if enabled)
+      if (config.shieldUrl && config.showShield) {
+        try {
+          const shield = await loadImg(config.shieldUrl);
+          const containerLeft = config.shieldPosition === "left" ? CW * 0.15 : config.shieldPosition === "center" ? CW * 0.325 : CW * 0.505;
+          const containerTop = CH * 0.12;
+          const containerWidth = CW * 0.5;
+          const containerHeight = CW * 0.5;
+          
+          const shieldRatio = config.shieldSize / 50;
+          const shieldWidth = containerWidth * shieldRatio;
+          const shieldHeight = containerHeight * shieldRatio;
+          
+          const shieldX = containerLeft + (containerWidth - shieldWidth) / 2;
+          const shieldY = containerTop + (containerHeight - shieldHeight) / 2;
+          
+          ctx.drawImage(shield, cells[0].x + shieldX, cells[0].y + shieldY, shieldWidth, shieldHeight);
+          ctx.drawImage(shield, cells[2].x + shieldX, cells[2].y + shieldY, shieldWidth, shieldHeight);
+        } catch { /* skip */ }
+      }
+
+      // Front Number on both fronts
+      if (config.showFrontNumber && config.number) {
+        const drawFrontNumber = (cell: { x: number; y: number }, tc: string) => {
+          ctx.save();
+          const numLeft = config.frontNumberPosition === "left" ? CW * 0.28 : config.frontNumberPosition === "center" ? CW * 0.46 : CW * 0.64;
+          const numTop = CH * 0.26;
+          const numWidth = CW * 0.22;
+          const numHeight = CW * 0.22;
+          
+          const cx = cell.x + numLeft + numWidth / 2;
+          const cy = cell.y + numTop + numHeight / 2;
+          
+          ctx.font = `900 ${Math.round(CH * 0.16)}px 'Impact', 'Arial Black', sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = tc;
+          ctx.translate(cx, cy);
+          ctx.scale(1, 1.15);
+          ctx.fillText(config.number, 0, 0);
+          ctx.restore();
+        };
+        drawFrontNumber(cells[0], config.letterColor);
+        drawFrontNumber(cells[2], config.letterColorBack);
+      }
+
+      // Number + team name on both backs
+      const drawText = (cell: { x: number; y: number }, tc: string) => {
+        const cx = cell.x + CW / 2;
+        const fontMap: Record<JerseyConfig["teamNameFont"], string> = {
+          "arial-black": "'Arial Black', Arial, sans-serif",
+          "impact": "'Impact', 'Arial Black', sans-serif",
+          "bebas": "'Bebas Neue', 'Arial Black', sans-serif",
+          "roboto": "'Roboto Condensed', 'Arial', sans-serif",
+          "montserrat": "'Montserrat', 'Arial Black', sans-serif",
+          "oswald": "'Oswald', 'Arial Black', sans-serif",
+          "teko": "'Teko', 'Arial Black', sans-serif",
+          "anton": "'Anton', 'Arial Black', sans-serif",
+        };
+        const teamFont = fontMap[config.teamNameFont] || fontMap["arial-black"];
+        if (config.showNumber && config.number) {
+          ctx.save();
+          ctx.font = `900 ${Math.round(CH * 0.22)}px 'Impact', 'Arial Black', sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.fillStyle = tc;
+          ctx.translate(cx, cell.y + CH * 0.51);
+          ctx.scale(1, 1.15);
+          ctx.fillText(config.number, 0, 0);
+          ctx.restore();
+        }
+        if (config.teamName) {
+          ctx.font = `900 ${Math.round(CH * 0.05)}px ${teamFont}`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.fillStyle = tc;
+          ctx.fillText(config.teamName, cx, cell.y + CH * 0.77);
+        }
+      };
+      drawText(cells[1], config.letterColor);
+      drawText(cells[3], config.letterColorBack);
+
+      // Labels
+      ctx.font = "bold 11px Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillStyle = "#999";
+      ctx.fillText("FRENTE", cells[0].x + CW / 2, cells[0].y + CH + 4);
+      ctx.fillText("ESPALDA", cells[1].x + CW / 2, cells[1].y + CH + 4);
+      ctx.fillText("FRENTE (DORSO)", cells[2].x + CW / 2, cells[2].y + CH + 4);
+      ctx.fillText("ESPALDA (DORSO)", cells[3].x + CW / 2, cells[3].y + CH + 4);
 
       // Descargar la imagen
       const fileName = `big-sportswear-${config.teamName || "equipo"}.png`;
@@ -155,7 +441,6 @@ export default function JerseyCustomizer() {
       const message = `Hola! Quisiera pedir este modelo!%0A%0A*Detalles:*%0A- Equipo: ${config.teamName}%0A- Color Principal: ${config.color}%0A- Color Dorso: ${config.secondaryColor}%0A%0ATe adjunto la imagen que acabo de descargar con el diseño.`;
       const whatsappUrl = `https://wa.me/${phone}?text=${message}`;
       
-      // Pequeño delay para asegurar que la descarga comience antes de redirigir
       setTimeout(() => {
         window.open(whatsappUrl, "_blank", "noopener,noreferrer");
       }, 500);
@@ -166,7 +451,7 @@ export default function JerseyCustomizer() {
     } finally {
       setIsGeneratingImage(false);
     }
-  }, [config.teamName, config.color, config.secondaryColor]);
+  }, [config]);
 
   return (
     <div className="min-h-screen bg-white text-black font-sans">
