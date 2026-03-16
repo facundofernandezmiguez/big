@@ -98,23 +98,33 @@ export default function JerseyCustomizer() {
   };
 
   const handleDownload = useCallback(async () => {
-    if (!previewRef.current) return;
+    if (!previewRef.current) {
+      console.error("previewRef is not available");
+      alert("Error: No se pudo acceder al preview. Por favor recarga la página.");
+      return;
+    }
 
     try {
+      console.log("Starting html2canvas capture...");
       const canvas = await html2canvas(previewRef.current, {
         backgroundColor: "#ffffff",
         scale: 2,
         useCORS: true,
         allowTaint: true,
-        logging: false,
+        logging: true,
       });
 
+      console.log("Canvas captured successfully, dimensions:", canvas.width, "x", canvas.height);
+      
       const link = document.createElement("a");
       link.download = `big-sportswear-${config.teamName || "equipo"}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
+      
+      console.log("Download triggered successfully");
     } catch (err) {
       console.error("Download error:", err);
+      alert("Error al descargar la imagen. Por favor intenta de nuevo o contacta a soporte.");
     }
   }, [config.teamName]);
 
