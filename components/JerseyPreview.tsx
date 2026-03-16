@@ -314,7 +314,7 @@ export default function JerseyPreview({ config, className, onConfigChange }: Jer
       const parentHeight = parentElement.offsetHeight;
       const deltaPercent = (deltaY / parentHeight) * 100;
       
-      const newPos = Math.max(50, Math.min(90, dragStartPos + deltaPercent));
+      const newPos = Math.max(35, Math.min(90, dragStartPos + deltaPercent));
       onConfigChange({ teamNamePositionY: newPos });
     };
 
