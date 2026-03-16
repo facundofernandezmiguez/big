@@ -196,17 +196,6 @@ export default function JerseyCustomizer() {
                 onConfigChange={(updates) => setConfig((prev) => ({ ...prev, ...updates }))}
               />
             </div>
-            <Button
-              onClick={handleDownload}
-              className="hidden lg:flex w-full max-w-[400px] bg-black hover:bg-black/80 text-white font-bold tracking-widest uppercase rounded-none h-12 gap-2 text-xs"
-            >
-              <Download className="w-4 h-4" />
-              Descargar previsualización
-            </Button>
-            <p className="hidden lg:block text-[11px] text-black/35 text-center max-w-sm leading-relaxed">
-              Esta imagen es una previsualización. El diseño final puede variar
-              levemente según el proceso de producción.
-            </p>
           </div>
 
           {/* Controls */}
@@ -546,9 +535,6 @@ export default function JerseyCustomizer() {
                       onChange={(e) => setConfig((prev) => ({ ...prev, teamNameSize: parseInt(e.target.value) }))}
                       className="w-full h-2 bg-black/10 rounded-lg appearance-none cursor-pointer accent-black"
                     />
-                    <p className="text-[10px] text-black/30 mt-1 text-center">
-                      {config.teamNameSize}%
-                    </p>
                   </div>
 
                   {/* Font Selector Dropdown */}
