@@ -38,6 +38,65 @@ export default function JerseyCustomizer() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
+  // Function to remove solid backgrounds (for logos)
+  const removeSolidBackground = useCallback((file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx!.drawImage(img, 0, 0);
+        
+        const imageData = ctx!.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // Sample corner pixels to detect background color
+        const corners = [
+          [0, 0],
+          [canvas.width - 1, 0],
+          [0, canvas.height - 1],
+          [canvas.width - 1, canvas.height - 1]
+        ];
+        
+        let bgR = 0, bgG = 0, bgB = 0;
+        corners.forEach(([x, y]) => {
+          const idx = (y * canvas.width + x) * 4;
+          bgR += data[idx];
+          bgG += data[idx + 1];
+          bgB += data[idx + 2];
+        });
+        bgR = Math.round(bgR / 4);
+        bgG = Math.round(bgG / 4);
+        bgB = Math.round(bgB / 4);
+        
+        // Remove pixels similar to background color
+        const threshold = 40;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          
+          const diff = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB);
+          if (diff < threshold) {
+            data[i + 3] = 0; // Make transparent
+          }
+        }
+        
+        ctx!.putImageData(imageData, 0, 0);
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Failed to create blob'));
+        }, 'image/png');
+      };
+      
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  }, []);
+
   const handleColorSelect = (hex: string) => {
     setConfig((prev) => ({ ...prev, color: hex }));
   };
@@ -57,38 +116,43 @@ export default function JerseyCustomizer() {
       setRemoveBgError(null);
       setShieldFileName(file.name);
 
-      if (file.type === "image/png") {
-        console.log("[Shield Upload] PNG file detected, skipping background removal");
-        setConfig((prev) => ({ ...prev, shieldUrl: URL.createObjectURL(file) }));
-        return;
-      }
-
       console.log("[Shield Upload] Starting background removal for:", file.name, "Size:", (file.size / 1024).toFixed(1), "KB");
       setIsRemovingBg(true);
       
-      // Add timeout to detect hangs
-      const timeoutId = setTimeout(() => {
-        console.warn("[Shield Upload] Background removal is taking longer than expected (>30s). Model may still be downloading...");
-      }, 30000);
-      
       try {
-        console.log("[Shield Upload] Calling removeBackground()...");
-        const imageBlob = await removeBackground(file);
-        clearTimeout(timeoutId);
-        console.log("[Shield Upload] Background removal complete. Blob size:", (imageBlob.size / 1024).toFixed(1), "KB");
-        const url = URL.createObjectURL(imageBlob);
+        // First try simple solid background removal (for logos)
+        console.log("[Shield Upload] Trying solid background removal...");
+        const simpleBlob = await removeSolidBackground(file);
+        console.log("[Shield Upload] Solid background removal complete. Blob size:", (simpleBlob.size / 1024).toFixed(1), "KB");
+        const url = URL.createObjectURL(simpleBlob);
         setConfig((prev) => ({ ...prev, shieldUrl: url }));
-      } catch (err: unknown) {
-        clearTimeout(timeoutId);
-        const message = err instanceof Error ? err.message : "Error desconocido";
-        console.error("[Shield Upload] Error:", message, err);
-        setRemoveBgError(message);
-        setConfig((prev) => ({ ...prev, shieldUrl: URL.createObjectURL(file) }));
+      } catch (simpleErr) {
+        console.log("[Shield Upload] Solid background removal failed, trying AI model...");
+        
+        // Fallback to AI model
+        const timeoutId = setTimeout(() => {
+          console.warn("[Shield Upload] AI model is taking longer than expected (>30s). Model may still be downloading...");
+        }, 30000);
+        
+        try {
+          console.log("[Shield Upload] Calling removeBackground()...");
+          const imageBlob = await removeBackground(file);
+          clearTimeout(timeoutId);
+          console.log("[Shield Upload] AI background removal complete. Blob size:", (imageBlob.size / 1024).toFixed(1), "KB");
+          const url = URL.createObjectURL(imageBlob);
+          setConfig((prev) => ({ ...prev, shieldUrl: url }));
+        } catch (err: unknown) {
+          clearTimeout(timeoutId);
+          const message = err instanceof Error ? err.message : "Error desconocido";
+          console.error("[Shield Upload] Error:", message, err);
+          setRemoveBgError(message);
+          setConfig((prev) => ({ ...prev, shieldUrl: URL.createObjectURL(file) }));
+        }
       } finally {
         setIsRemovingBg(false);
       }
     },
-    []
+    [removeSolidBackground]
   );
 
   const handleRemoveShield = () => {
