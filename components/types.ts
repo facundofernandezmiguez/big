@@ -13,4 +13,6 @@ export interface JerseyConfig {
   frontNumberPosition: "center" | "left" | "right";
   teamName: string;
   teamNameFont: "arial-black" | "impact" | "bebas" | "roboto" | "montserrat" | "oswald" | "teko" | "anton";
+  teamNameSize: number;
+  teamNamePositionY: number;
 }

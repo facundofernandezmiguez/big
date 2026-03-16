@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { JerseyConfig } from "./types";
 
 interface JerseyPreviewProps {
   config: JerseyConfig;
   className?: string;
+  onConfigChange?: (config: Partial<JerseyConfig>) => void;
 }
 
 // ─── Helpers ───
@@ -294,9 +295,41 @@ function useRecoloredPair(color: string, dorsoColor: string) {
 }
 
 // ─── Component ───
-export default function JerseyPreview({ config, className }: JerseyPreviewProps) {
+export default function JerseyPreview({ config, className, onConfigChange }: JerseyPreviewProps) {
   const primary = useRecoloredPair(config.color, config.secondaryColor);
   const secondary = useRecoloredPair(config.secondaryColor, config.color);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartY, setDragStartY] = useState(0);
+  const [dragStartPos, setDragStartPos] = useState(0);
+  const teamNameRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isDragging || !onConfigChange) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const parentElement = teamNameRef.current?.parentElement;
+      if (!parentElement) return;
+
+      const deltaY = e.clientY - dragStartY;
+      const parentHeight = parentElement.offsetHeight;
+      const deltaPercent = (deltaY / parentHeight) * 100;
+      
+      const newPos = Math.max(50, Math.min(90, dragStartPos + deltaPercent));
+      onConfigChange({ teamNamePositionY: newPos });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragStartY, dragStartPos, onConfigChange]);
 
   const placeholder = (
     <div className="w-full aspect-[3/4] bg-gray-100 animate-pulse rounded" />
@@ -385,10 +418,11 @@ export default function JerseyPreview({ config, className }: JerseyPreviewProps)
         )}
         {config.teamName && (
           <div
-            className="absolute inset-x-0 text-center font-black tracking-wider pointer-events-none"
+            ref={teamNameRef}
+            className="absolute inset-x-0 text-center font-black tracking-wider select-none"
             style={{
-              top: "77%",
-              fontSize: "clamp(0.5rem, 2.2vw, 1.2rem)",
+              top: `${config.teamNamePositionY}%`,
+              fontSize: `clamp(${0.5 * config.teamNameSize / 100}rem, ${2.2 * config.teamNameSize / 100}vw, ${1.2 * config.teamNameSize / 100}rem)`,
               color: textColor,
               fontFamily: config.teamNameFont === "bebas" ? "'Bebas Neue', 'Arial Black', sans-serif" : 
                           config.teamNameFont === "roboto" ? "'Roboto Condensed', 'Arial', sans-serif" : 
@@ -398,6 +432,15 @@ export default function JerseyPreview({ config, className }: JerseyPreviewProps)
                           config.teamNameFont === "teko" ? "'Teko', 'Arial Black', sans-serif" : 
                           config.teamNameFont === "anton" ? "'Anton', 'Arial Black', sans-serif" : 
                           "'Arial Black', sans-serif",
+              cursor: onConfigChange ? (isDragging ? 'grabbing' : 'grab') : 'default',
+              pointerEvents: onConfigChange ? 'auto' : 'none',
+            }}
+            onMouseDown={(e) => {
+              if (!onConfigChange) return;
+              e.preventDefault();
+              setIsDragging(true);
+              setDragStartY(e.clientY);
+              setDragStartPos(config.teamNamePositionY);
             }}
           >
             {config.teamName}
