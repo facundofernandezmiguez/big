@@ -1,12 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { JerseyConfig } from "./types";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { JerseyConfig, TextElement, FontOption } from "./types";
 
 interface JerseyPreviewProps {
   config: JerseyConfig;
   className?: string;
+  onTextMove?: (id: string, x: number, y: number) => void;
 }
+
+const FONT_FAMILY_MAP: Record<FontOption, string> = {
+  "arial-black": "'Arial Black', sans-serif",
+  "impact": "'Impact', 'Arial Black', sans-serif",
+  "bebas": "'Bebas Neue', 'Arial Black', sans-serif",
+  "roboto": "'Roboto Condensed', 'Arial', sans-serif",
+  "montserrat": "'Montserrat', 'Arial Black', sans-serif",
+  "oswald": "'Oswald', 'Arial Black', sans-serif",
+  "teko": "'Teko', 'Arial Black', sans-serif",
+  "anton": "'Anton', 'Arial Black', sans-serif",
+};
 
 // ─── Helpers ───
 function hexToRgb(hex: string) {
@@ -294,7 +306,70 @@ function useRecoloredPair(color: string, dorsoColor: string) {
 }
 
 // ─── Component ───
-export default function JerseyPreview({ config, className }: JerseyPreviewProps) {
+export default function JerseyPreview({ config, className, onTextMove }: JerseyPreviewProps) {
+  const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number; containerRect: DOMRect } | null>(null);
+  const containerRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, el: TextElement, containerKey: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const container = containerRefs.current[containerKey];
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    dragRef.current = { id: el.id, startX: clientX, startY: clientY, origX: el.x, origY: el.y, containerRect: rect };
+
+    const handleMove = (ev: MouseEvent | TouchEvent) => {
+      if (!dragRef.current) return;
+      const cx = 'touches' in ev ? ev.touches[0].clientX : (ev as MouseEvent).clientX;
+      const cy = 'touches' in ev ? ev.touches[0].clientY : (ev as MouseEvent).clientY;
+      const dx = cx - dragRef.current.startX;
+      const dy = cy - dragRef.current.startY;
+      const newX = Math.max(0, Math.min(100, dragRef.current.origX + (dx / dragRef.current.containerRect.width) * 100));
+      const newY = Math.max(0, Math.min(100, dragRef.current.origY + (dy / dragRef.current.containerRect.height) * 100));
+      onTextMove?.(dragRef.current.id, newX, newY);
+    };
+
+    const handleEnd = () => {
+      dragRef.current = null;
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleEnd);
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleEnd);
+  }, [onTextMove]);
+
+  const renderTextElements = (target: "front" | "back", containerKey: string, textColor: string) => {
+    return config.textElements
+      .filter((el) => el.target === target)
+      .map((el) => (
+        <div
+          key={el.id}
+          className="absolute text-center font-black tracking-wider cursor-grab active:cursor-grabbing select-none"
+          style={{
+            left: `${el.x}%`,
+            top: `${el.y}%`,
+            transform: "translate(-50%, -50%)",
+            fontSize: `calc(clamp(0.5rem, 2.2vw, 1.2rem) * ${el.size})`,
+            color: textColor,
+            fontFamily: FONT_FAMILY_MAP[el.font],
+            whiteSpace: "nowrap",
+            zIndex: 10,
+          }}
+          onMouseDown={(e) => handleDragStart(e, el, containerKey)}
+          onTouchStart={(e) => handleDragStart(e, el, containerKey)}
+        >
+          {el.text}
+        </div>
+      ));
+  };
+
   const primary = useRecoloredPair(config.color, config.secondaryColor);
   const secondary = useRecoloredPair(config.secondaryColor, config.color);
 
@@ -313,7 +388,7 @@ export default function JerseyPreview({ config, className }: JerseyPreviewProps)
   ) => (
     <>
       {/* Front */}
-      <div className="relative flex flex-col items-center">
+      <div className="relative flex flex-col items-center" ref={(node) => { containerRefs.current[`front-${color}`] = node; }}>
         {pair.frontUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={pair.frontUrl} alt={labelFront} className="w-full h-auto" draggable={false} style={imgStyle} />
@@ -333,13 +408,13 @@ export default function JerseyPreview({ config, className }: JerseyPreviewProps)
             className="absolute text-center leading-none pointer-events-none"
             style={{
               left: config.frontNumberPosition === "left" ? "28%" : config.frontNumberPosition === "center" ? "46%" : "64%",
-              top: "26%", // Align with shield top
-              width: "22%", // Same width as shield container
-              height: "22%", // Same height to center vertically
+              top: "26%",
+              width: "22%",
+              height: "22%",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "clamp(1.6rem, 5vw, 2.5rem)", // Larger font size for front
+              fontSize: "clamp(1.6rem, 5vw, 2.5rem)",
               color: textColor,
               fontFamily: "'Impact', 'Arial Black', sans-serif",
               transform: "scaleY(1.15)",
@@ -348,13 +423,14 @@ export default function JerseyPreview({ config, className }: JerseyPreviewProps)
             {config.number}
           </div>
         )}
+        {renderTextElements("front", `front-${color}`, textColor)}
         <span className="mt-1 text-[10px] font-bold tracking-[0.15em] uppercase text-black/40">
           {labelFront}
         </span>
       </div>
 
       {/* Back */}
-      <div className="relative flex flex-col items-center">
+      <div className="relative flex flex-col items-center" ref={(node) => { containerRefs.current[`back-${color}`] = node; }}>
         {pair.backUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={pair.backUrl} alt={labelBack} className="w-full h-auto" draggable={false} style={imgStyle} />
@@ -363,8 +439,8 @@ export default function JerseyPreview({ config, className }: JerseyPreviewProps)
           <div
             className="absolute inset-x-0 text-center leading-none pointer-events-none"
             style={{
-              top: "51%", // Moved up slightly from 55%
-              fontSize: "clamp(2rem, 12vw, 5.5rem)", // Made slightly larger again
+              top: "51%",
+              fontSize: "clamp(2rem, 12vw, 5.5rem)",
               color: textColor,
               fontFamily: "'Impact', 'Arial Black', sans-serif",
               transform: "scaleY(1.15)",
@@ -373,26 +449,7 @@ export default function JerseyPreview({ config, className }: JerseyPreviewProps)
             {config.number}
           </div>
         )}
-        {config.teamName && (
-          <div
-            className="absolute inset-x-0 text-center font-black tracking-wider pointer-events-none"
-            style={{
-              top: "77%",
-              fontSize: "clamp(0.5rem, 2.2vw, 1.2rem)",
-              color: textColor,
-              fontFamily: config.teamNameFont === "bebas" ? "'Bebas Neue', 'Arial Black', sans-serif" : 
-                          config.teamNameFont === "roboto" ? "'Roboto Condensed', 'Arial', sans-serif" : 
-                          config.teamNameFont === "impact" ? "'Impact', 'Arial Black', sans-serif" : 
-                          config.teamNameFont === "montserrat" ? "'Montserrat', 'Arial Black', sans-serif" : 
-                          config.teamNameFont === "oswald" ? "'Oswald', 'Arial Black', sans-serif" : 
-                          config.teamNameFont === "teko" ? "'Teko', 'Arial Black', sans-serif" : 
-                          config.teamNameFont === "anton" ? "'Anton', 'Arial Black', sans-serif" : 
-                          "'Arial Black', sans-serif",
-            }}
-          >
-            {config.teamName}
-          </div>
-        )}
+        {renderTextElements("back", `back-${color}`, textColor)}
         <span className="mt-1 text-[10px] font-bold tracking-[0.15em] uppercase text-black/40">
           {labelBack}
         </span>

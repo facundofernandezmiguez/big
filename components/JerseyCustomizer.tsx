@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Upload, Download, Loader2, X } from "lucide-react";
+import { Upload, Download, Loader2, X, Plus, GripVertical } from "lucide-react";
 import JerseyPreview from "./JerseyPreview";
 import { isLight, recolorPixels } from "./JerseyPreview";
-import { JerseyConfig } from "./types";
+import { JerseyConfig, TextElement, FontOption } from "./types";
 import { removeBackground } from "@imgly/background-removal";
 
 export default function JerseyCustomizer() {
@@ -24,9 +24,46 @@ export default function JerseyCustomizer() {
     showNumber: true,
     showFrontNumber: false,
     frontNumberPosition: "left",
-    teamName: "MI EQUIPO",
-    teamNameFont: "arial-black",
+    textElements: [
+      { id: "1", text: "MI EQUIPO", font: "arial-black", size: 1, x: 50, y: 77, target: "back" },
+    ],
   });
+
+  const nextTextId = useRef(2);
+
+  const handleAddText = () => {
+    const newEl: TextElement = {
+      id: String(nextTextId.current++),
+      text: "",
+      font: "arial-black",
+      size: 1,
+      x: 50,
+      y: 50,
+      target: "back",
+    };
+    setConfig((prev) => ({ ...prev, textElements: [...prev.textElements, newEl] }));
+  };
+
+  const handleUpdateText = (id: string, updates: Partial<TextElement>) => {
+    setConfig((prev) => ({
+      ...prev,
+      textElements: prev.textElements.map((el) => (el.id === id ? { ...el, ...updates } : el)),
+    }));
+  };
+
+  const handleRemoveText = (id: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      textElements: prev.textElements.filter((el) => el.id !== id),
+    }));
+  };
+
+  const handleTextMove = useCallback((id: string, x: number, y: number) => {
+    setConfig((prev) => ({
+      ...prev,
+      textElements: prev.textElements.map((el) => (el.id === id ? { ...el, x, y } : el)),
+    }));
+  }, []);
 
   const [shieldFileName, setShieldFileName] = useState<string | null>(null);
   const [isRemovingBg, setIsRemovingBg] = useState(false);
@@ -195,43 +232,50 @@ export default function JerseyCustomizer() {
         drawFrontNumber(cells[2], config.letterColorBack);
       }
 
-      // Number + team name on both backs (only number if enabled, moved lower)
-      const drawText = (cell: { x: number; y: number }, tc: string) => {
-        const cx = cell.x + CW / 2;
-        const fontMap: Record<JerseyConfig["teamNameFont"], string> = {
-          "arial-black": "'Arial Black', Arial, sans-serif",
-          "impact": "'Impact', 'Arial Black', sans-serif",
-          "bebas": "'Bebas Neue', 'Arial Black', sans-serif",
-          "roboto": "'Roboto Condensed', 'Arial', sans-serif",
-          "montserrat": "'Montserrat', 'Arial Black', sans-serif",
-          "oswald": "'Oswald', 'Arial Black', sans-serif",
-          "teko": "'Teko', 'Arial Black', sans-serif",
-          "anton": "'Anton', 'Arial Black', sans-serif",
-        };
-        const teamFont = fontMap[config.teamNameFont] || fontMap["arial-black"];
-        if (config.showNumber && config.number) {
+      // Back number on both backs
+      if (config.showNumber && config.number) {
+        const drawBackNumber = (cell: { x: number; y: number }, tc: string) => {
+          const cx = cell.x + CW / 2;
           ctx.save();
-          // Larger font (was 0.18 -> 0.22)
           ctx.font = `900 ${Math.round(CH * 0.22)}px 'Impact', 'Arial Black', sans-serif`;
           ctx.textAlign = "center";
           ctx.textBaseline = "top";
           ctx.fillStyle = tc;
-          // Position
           ctx.translate(cx, cell.y + CH * 0.51);
           ctx.scale(1, 1.15);
           ctx.fillText(config.number, 0, 0);
           ctx.restore();
-        }
-        if (config.teamName) {
-          ctx.font = `900 ${Math.round(CH * 0.05)}px ${teamFont}`;
+        };
+        drawBackNumber(cells[1], config.letterColor);
+        drawBackNumber(cells[3], config.letterColorBack);
+      }
+
+      // Text elements
+      const fontMap: Record<FontOption, string> = {
+        "arial-black": "'Arial Black', Arial, sans-serif",
+        "impact": "'Impact', 'Arial Black', sans-serif",
+        "bebas": "'Bebas Neue', 'Arial Black', sans-serif",
+        "roboto": "'Roboto Condensed', 'Arial', sans-serif",
+        "montserrat": "'Montserrat', 'Arial Black', sans-serif",
+        "oswald": "'Oswald', 'Arial Black', sans-serif",
+        "teko": "'Teko', 'Arial Black', sans-serif",
+        "anton": "'Anton', 'Arial Black', sans-serif",
+      };
+      const drawTextElements = (cell: { x: number; y: number }, target: "front" | "back", tc: string) => {
+        for (const el of config.textElements) {
+          if (el.target !== target || !el.text) continue;
+          const elFont = fontMap[el.font] || fontMap["arial-black"];
+          ctx.font = `900 ${Math.round(CH * 0.05 * el.size)}px ${elFont}`;
           ctx.textAlign = "center";
-          ctx.textBaseline = "top";
+          ctx.textBaseline = "middle";
           ctx.fillStyle = tc;
-          ctx.fillText(config.teamName, cx, cell.y + CH * 0.77);
+          ctx.fillText(el.text, cell.x + CW * (el.x / 100), cell.y + CH * (el.y / 100));
         }
       };
-      drawText(cells[1], config.letterColor);
-      drawText(cells[3], config.letterColorBack);
+      drawTextElements(cells[0], "front", config.letterColor);
+      drawTextElements(cells[1], "back", config.letterColor);
+      drawTextElements(cells[2], "front", config.letterColorBack);
+      drawTextElements(cells[3], "back", config.letterColorBack);
 
       // Labels
       ctx.font = "bold 11px Arial, sans-serif";
@@ -243,8 +287,9 @@ export default function JerseyCustomizer() {
       ctx.fillText("FRENTE (DORSO)", cells[2].x + CW / 2, cells[2].y + CH + 4);
       ctx.fillText("ESPALDA (DORSO)", cells[3].x + CW / 2, cells[3].y + CH + 4);
 
+      const firstText = config.textElements.find(el => el.text)?.text || "equipo";
       const link = document.createElement("a");
-      link.download = `big-sportswear-${config.teamName || "equipo"}.png`;
+      link.download = `big-sportswear-${firstText}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
     } catch (err) {
@@ -348,21 +393,10 @@ export default function JerseyCustomizer() {
         drawFrontNumber(cells[2], config.letterColorBack);
       }
 
-      // Number + team name on both backs (only number if enabled, moved lower)
-      const drawText = (cell: { x: number; y: number }, tc: string) => {
-        const cx = cell.x + CW / 2;
-        const fontMap: Record<JerseyConfig["teamNameFont"], string> = {
-          "arial-black": "'Arial Black', Arial, sans-serif",
-          "impact": "'Impact', 'Arial Black', sans-serif",
-          "bebas": "'Bebas Neue', 'Arial Black', sans-serif",
-          "roboto": "'Roboto Condensed', 'Arial', sans-serif",
-          "montserrat": "'Montserrat', 'Arial Black', sans-serif",
-          "oswald": "'Oswald', 'Arial Black', sans-serif",
-          "teko": "'Teko', 'Arial Black', sans-serif",
-          "anton": "'Anton', 'Arial Black', sans-serif",
-        };
-        const teamFont = fontMap[config.teamNameFont] || fontMap["arial-black"];
-        if (config.showNumber && config.number) {
+      // Back number on both backs
+      if (config.showNumber && config.number) {
+        const drawBackNumber2 = (cell: { x: number; y: number }, tc: string) => {
+          const cx = cell.x + CW / 2;
           ctx.save();
           ctx.font = `900 ${Math.round(CH * 0.22)}px 'Impact', 'Arial Black', sans-serif`;
           ctx.textAlign = "center";
@@ -372,17 +406,37 @@ export default function JerseyCustomizer() {
           ctx.scale(1, 1.15);
           ctx.fillText(config.number, 0, 0);
           ctx.restore();
-        }
-        if (config.teamName) {
-          ctx.font = `900 ${Math.round(CH * 0.05)}px ${teamFont}`;
+        };
+        drawBackNumber2(cells[1], config.letterColor);
+        drawBackNumber2(cells[3], config.letterColorBack);
+      }
+
+      // Text elements
+      const fontMap2: Record<FontOption, string> = {
+        "arial-black": "'Arial Black', Arial, sans-serif",
+        "impact": "'Impact', 'Arial Black', sans-serif",
+        "bebas": "'Bebas Neue', 'Arial Black', sans-serif",
+        "roboto": "'Roboto Condensed', 'Arial', sans-serif",
+        "montserrat": "'Montserrat', 'Arial Black', sans-serif",
+        "oswald": "'Oswald', 'Arial Black', sans-serif",
+        "teko": "'Teko', 'Arial Black', sans-serif",
+        "anton": "'Anton', 'Arial Black', sans-serif",
+      };
+      const drawTextElements2 = (cell: { x: number; y: number }, target: "front" | "back", tc: string) => {
+        for (const el of config.textElements) {
+          if (el.target !== target || !el.text) continue;
+          const elFont = fontMap2[el.font] || fontMap2["arial-black"];
+          ctx.font = `900 ${Math.round(CH * 0.05 * el.size)}px ${elFont}`;
           ctx.textAlign = "center";
-          ctx.textBaseline = "top";
+          ctx.textBaseline = "middle";
           ctx.fillStyle = tc;
-          ctx.fillText(config.teamName, cx, cell.y + CH * 0.77);
+          ctx.fillText(el.text, cell.x + CW * (el.x / 100), cell.y + CH * (el.y / 100));
         }
       };
-      drawText(cells[1], config.letterColor);
-      drawText(cells[3], config.letterColorBack);
+      drawTextElements2(cells[0], "front", config.letterColor);
+      drawTextElements2(cells[1], "back", config.letterColor);
+      drawTextElements2(cells[2], "front", config.letterColorBack);
+      drawTextElements2(cells[3], "back", config.letterColorBack);
 
       // Labels
       ctx.font = "bold 11px Arial, sans-serif";
@@ -395,7 +449,8 @@ export default function JerseyCustomizer() {
       ctx.fillText("ESPALDA (DORSO)", cells[3].x + CW / 2, cells[3].y + CH + 4);
 
       // Descargar la imagen
-      const fileName = `big-sportswear-${config.teamName || "equipo"}.png`;
+      const firstText2 = config.textElements.find(el => el.text)?.text || "equipo";
+      const fileName = `big-sportswear-${firstText2}.png`;
       const canvasDataUrl = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.download = fileName;
@@ -404,7 +459,8 @@ export default function JerseyCustomizer() {
 
       // Abrir WhatsApp con el texto (la imagen ya se descargó para que el usuario la adjunte manualmente)
       const phone = "5491126237532";
-      const message = `Hola! Quisiera pedir este modelo!%0A%0A*Detalles:*%0A- Equipo: ${config.teamName}%0A- Color Principal: ${config.color}%0A- Color Dorso: ${config.secondaryColor}%0A%0ATe adjunto la imagen que acabo de descargar con el diseño.`;
+      const textsDescription = config.textElements.filter(el => el.text).map(el => el.text).join(", ") || "Sin texto";
+      const message = `Hola! Quisiera pedir este modelo!%0A%0A*Detalles:*%0A- Textos: ${textsDescription}%0A- Color Principal: ${config.color}%0A- Color Dorso: ${config.secondaryColor}%0A%0ATe adjunto la imagen que acabo de descargar con el diseño.`;
       const whatsappUrl = `https://wa.me/${phone}?text=${message}`;
       
       // Pequeño delay para asegurar que la descarga comience antes de redirigir
@@ -461,19 +517,9 @@ export default function JerseyCustomizer() {
               <JerseyPreview
                 config={config}
                 className="w-full max-w-[520px]"
+                onTextMove={handleTextMove}
               />
             </div>
-            <Button
-              onClick={handleDownload}
-              className="hidden lg:flex w-full max-w-[400px] bg-black hover:bg-black/80 text-white font-bold tracking-widest uppercase rounded-none h-12 gap-2 text-xs"
-            >
-              <Download className="w-4 h-4" />
-              Descargar previsualización
-            </Button>
-            <p className="hidden lg:block text-[11px] text-black/35 text-center max-w-sm leading-relaxed">
-              Esta imagen es una previsualización. El diseño final puede variar
-              levemente según el proceso de producción.
-            </p>
           </div>
 
           {/* Controls */}
@@ -756,72 +802,117 @@ export default function JerseyCustomizer() {
                   )}
                 </div>
 
-                {/* Team Name with Font Selector */}
-                <div className="flex flex-col gap-2 bg-[#f7f7f7] border border-black/8 p-4 sm:p-3">
-                  <Label
-                    htmlFor="teamName"
-                    className="text-[12px] sm:text-[11px] font-semibold tracking-widest uppercase text-black/70"
-                  >
-                    Nombre del equipo
-                  </Label>
-                  <Input
-                    id="teamName"
-                    type="text"
-                    maxLength={20}
-                    placeholder="Ej: LAS TRULITAS"
-                    value={config.teamName}
-                    onChange={(e) =>
-                      setConfig((prev) => ({ ...prev, teamName: e.target.value }))
-                    }
-                    className="rounded-none border-black/20 focus-visible:ring-0 focus-visible:border-black text-base sm:text-sm h-12 sm:h-10 bg-white"
-                  />
-                  <p className="text-[11px] text-black/30">
-                    {config.teamName.length}/20 caracteres
-                  </p>
-
-                  {/* Font Selector Dropdown */}
-                  <div className="mt-3 sm:mt-2 pt-4 sm:pt-3 border-t border-black/10">
-                    <Label
-                      htmlFor="teamNameFont"
-                      className="text-[12px] sm:text-[11px] font-semibold tracking-widest uppercase text-black/60 block mb-3 sm:mb-2"
-                    >
-                      Tipografía
-                    </Label>
-                    <div className="relative">
-                      <select
-                        id="teamNameFont"
-                        value={config.teamNameFont}
-                        onChange={(e) => setConfig((prev) => ({ ...prev, teamNameFont: e.target.value as JerseyConfig["teamNameFont"] }))}
-                        className="w-full appearance-none rounded-none border border-black/20 bg-white px-4 sm:px-3 py-3 sm:py-2.5 text-base sm:text-sm outline-none focus-visible:border-black focus-visible:ring-0"
-                        style={{
-                          fontFamily: [
-                            { value: "arial-black", style: "'Arial Black', Arial, sans-serif" },
-                            { value: "impact", style: "'Impact', 'Arial Black', sans-serif" },
-                            { value: "bebas", style: "'Bebas Neue', sans-serif" },
-                            { value: "roboto", style: "'Roboto Condensed', sans-serif" },
-                            { value: "montserrat", style: "'Montserrat', sans-serif" },
-                            { value: "oswald", style: "'Oswald', sans-serif" },
-                            { value: "teko", style: "'Teko', sans-serif" },
-                            { value: "anton", style: "'Anton', sans-serif" },
-                          ].find(f => f.value === config.teamNameFont)?.style
-                        }}
-                      >
-                        <option value="arial-black" style={{ fontFamily: "'Arial Black', Arial, sans-serif" }}>Arial Black</option>
-                        <option value="impact" style={{ fontFamily: "'Impact', 'Arial Black', sans-serif" }}>Impact</option>
-                        <option value="bebas" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>Bebas Neue</option>
-                        <option value="roboto" style={{ fontFamily: "'Roboto Condensed', sans-serif" }}>Roboto Condensed</option>
-                        <option value="montserrat" style={{ fontFamily: "'Montserrat', sans-serif" }}>Montserrat</option>
-                        <option value="oswald" style={{ fontFamily: "'Oswald', sans-serif" }}>Oswald</option>
-                        <option value="teko" style={{ fontFamily: "'Teko', sans-serif" }}>Teko</option>
-                        <option value="anton" style={{ fontFamily: "'Anton', sans-serif" }}>Anton</option>
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-black/50">
-                        <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-                          <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd" />
-                        </svg>
+                {/* Text Elements */}
+                <div className="flex flex-col gap-3">
+                  {config.textElements.map((el) => (
+                    <div key={el.id} className="flex flex-col gap-2 bg-[#f7f7f7] border border-black/8 p-4 sm:p-3">
+                      <div className="flex items-center gap-2">
+                        <GripVertical className="w-4 h-4 text-black/20 flex-shrink-0" />
+                        <Input
+                          type="text"
+                          maxLength={30}
+                          placeholder="Escribí tu texto"
+                          value={el.text}
+                          onChange={(e) => handleUpdateText(el.id, { text: e.target.value })}
+                          className="rounded-none border-black/20 focus-visible:ring-0 focus-visible:border-black text-base sm:text-sm h-10 sm:h-9 bg-white flex-1"
+                        />
+                        <button
+                          onClick={() => handleRemoveText(el.id)}
+                          className="text-black/25 hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* Front/Back toggle */}
+                        <div className="flex border border-black/20">
+                          <button
+                            onClick={() => handleUpdateText(el.id, { target: "front" })}
+                            className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
+                              el.target === "front"
+                                ? "bg-black text-white"
+                                : "bg-white text-black/50 hover:text-black/70"
+                            }`}
+                          >
+                            Frente
+                          </button>
+                          <button
+                            onClick={() => handleUpdateText(el.id, { target: "back" })}
+                            className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
+                              el.target === "back"
+                                ? "bg-black text-white"
+                                : "bg-white text-black/50 hover:text-black/70"
+                            }`}
+                          >
+                            Espalda
+                          </button>
+                        </div>
+
+                        {/* Font selector */}
+                        <div className="relative flex-1">
+                          <select
+                            value={el.font}
+                            onChange={(e) => handleUpdateText(el.id, { font: e.target.value as FontOption })}
+                            className="w-full appearance-none rounded-none border border-black/20 bg-white px-3 py-1.5 text-[11px] outline-none focus-visible:border-black"
+                            style={{
+                              fontFamily: [
+                                { value: "arial-black", style: "'Arial Black', Arial, sans-serif" },
+                                { value: "impact", style: "'Impact', 'Arial Black', sans-serif" },
+                                { value: "bebas", style: "'Bebas Neue', sans-serif" },
+                                { value: "roboto", style: "'Roboto Condensed', sans-serif" },
+                                { value: "montserrat", style: "'Montserrat', sans-serif" },
+                                { value: "oswald", style: "'Oswald', sans-serif" },
+                                { value: "teko", style: "'Teko', sans-serif" },
+                                { value: "anton", style: "'Anton', sans-serif" },
+                              ].find(f => f.value === el.font)?.style
+                            }}
+                          >
+                            <option value="arial-black">Arial Black</option>
+                            <option value="impact">Impact</option>
+                            <option value="bebas">Bebas Neue</option>
+                            <option value="roboto">Roboto Condensed</option>
+                            <option value="montserrat">Montserrat</option>
+                            <option value="oswald">Oswald</option>
+                            <option value="teko">Teko</option>
+                            <option value="anton">Anton</option>
+                          </select>
+                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-black/50">
+                            <svg className="h-3 w-3 fill-current" viewBox="0 0 20 20">
+                              <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] text-black/40 whitespace-nowrap">Tamaño</span>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="3"
+                          step="0.1"
+                          value={el.size}
+                          onChange={(e) => handleUpdateText(el.id, { size: parseFloat(e.target.value) })}
+                          className="flex-1 h-1 accent-black cursor-pointer"
+                        />
+                        <span className="text-[10px] text-black/40 w-8 text-right">{el.size.toFixed(1)}x</span>
+                      </div>
+
+                      <p className="text-[10px] text-black/30 flex items-center gap-1">
+                        <GripVertical className="w-3 h-3" />
+                        Arrastrá el texto en la previsualización para posicionarlo
+                      </p>
                     </div>
-                  </div>
+                  ))}
+
+                  <button
+                    onClick={handleAddText}
+                    className="flex items-center justify-center gap-2 border border-dashed border-black/20 p-3 text-[11px] font-semibold tracking-widest uppercase text-black/50 hover:border-black/40 hover:text-black/70 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Agregar texto
+                  </button>
                 </div>
               </div>
             </div>
