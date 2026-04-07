@@ -509,10 +509,10 @@ export default function JerseyCustomizer() {
         <div className="flex flex-col lg:grid lg:grid-cols-[1fr_400px] gap-8 lg:gap-12 items-start">
 
           {/* Preview */}
-          <div className="flex flex-col items-center gap-4 sm:gap-5 sticky top-0 sm:top-4 z-10 w-full bg-white pb-4 lg:pb-0 shadow-[0_4px_20px_rgba(0,0,0,0.05)] sm:shadow-none">
+          <div className="flex flex-col items-center gap-4 sm:gap-5 lg:sticky lg:top-4 lg:z-10 w-full bg-white pb-4 lg:pb-0">
             <div
               ref={previewRef}
-              className="w-full bg-[#f7f7f7] border border-black/8 flex items-center justify-center p-4 sm:p-8 min-h-[350px] sm:min-h-[500px]"
+              className="w-full bg-[#f7f7f7] border border-black/8 flex items-center justify-center p-4 sm:p-8 min-h-[220px] sm:min-h-[500px]"
             >
               <JerseyPreview
                 config={config}
