@@ -608,142 +608,10 @@ export default function JerseyCustomizer() {
           {/* Controls */}
           <div className="flex flex-col gap-6 sm:gap-7 w-full">
 
-            {/* Step 1 — Color */}
+            {/* Step 1 — Shield */}
             <div>
-              <div className="flex items-baseline justify-between mb-3">
-                <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase">
-                  01 — Color de la remera
-                </h2>
-                <span className="text-[11px] text-black/45 font-medium uppercase">
-                  {config.color}
-                </span>
-              </div>
-              <div className="flex items-center gap-4 sm:gap-5">
-                <div className="relative w-14 h-14 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-black/20 shadow-sm cursor-pointer hover:scale-105 transition-transform">
-                  <input
-                    type="color"
-                    value={config.color}
-                    onChange={(e) => handleColorSelect(e.target.value)}
-                    className="absolute -top-2 -left-2 w-20 h-20 sm:w-16 sm:h-16 cursor-pointer opacity-0"
-                  />
-                  <div className="w-full h-full pointer-events-none" style={{ backgroundColor: config.color }} />
-                </div>
-                <div className="flex-1">
-                  <p className="text-[12px] sm:text-[11px] text-black/50 sm:text-black/40 leading-relaxed">
-                    Elegí cualquier color usando el selector continuo.
-                  </p>
-                </div>
-              </div>
-
-              {/* Gradient toggle */}
-              <div className="mt-3 space-y-3">
-                <div className="flex items-center justify-between bg-[#f7f7f7] border border-black/8 p-3">
-                  <span className="text-[11px] font-semibold tracking-widest uppercase text-black/70">
-                    Degradé
-                  </span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={config.useGradient}
-                      onChange={(e) => setConfig((prev) => ({ ...prev, useGradient: e.target.checked }))}
-                      className="sr-only peer"
-                    />
-                    <div className="w-10 h-6 bg-red-500 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-                  </label>
-                </div>
-                {config.useGradient && (
-                  <div className="flex items-center gap-4 sm:gap-5 bg-[#f7f7f7] border border-black/8 p-3">
-                    <div className="relative w-14 h-14 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-black/20 shadow-sm cursor-pointer hover:scale-105 transition-transform">
-                      <input
-                        type="color"
-                        value={config.gradientColor}
-                        onChange={(e) => setConfig((prev) => ({ ...prev, gradientColor: e.target.value }))}
-                        className="absolute -top-2 -left-2 w-20 h-20 sm:w-16 sm:h-16 cursor-pointer opacity-0"
-                      />
-                      <div className="w-full h-full pointer-events-none" style={{ backgroundColor: config.gradientColor }} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[12px] sm:text-[11px] text-black/50 sm:text-black/40 leading-relaxed">
-                        Segundo color del degradé.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <Separator className="bg-black/8" />
-
-            {/* Step 2 — Secondary Color (Dorso) */}
-            <div>
-              <div className="flex items-baseline justify-between mb-3">
-                <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase">
-                  02 — Color del dorso
-                </h2>
-                <span className="text-[11px] text-black/45 font-medium uppercase">
-                  {config.secondaryColor}
-                </span>
-              </div>
-              <div className="flex items-center gap-4 sm:gap-5">
-                <div className="relative w-14 h-14 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-black/20 shadow-sm cursor-pointer hover:scale-105 transition-transform">
-                  <input
-                    type="color"
-                    value={config.secondaryColor}
-                    onChange={(e) => handleSecondaryColorSelect(e.target.value)}
-                    className="absolute -top-2 -left-2 w-20 h-20 sm:w-16 sm:h-16 cursor-pointer opacity-0"
-                  />
-                  <div className="w-full h-full pointer-events-none" style={{ backgroundColor: config.secondaryColor }} />
-                </div>
-                <div className="flex-1">
-                  <p className="text-[12px] sm:text-[11px] text-black/50 sm:text-black/40 leading-relaxed">
-                    Elegí el color contrastante para el dorso y recortes.
-                  </p>
-                </div>
-              </div>
-
-              {/* Gradient toggle for secondary */}
-              <div className="mt-3 space-y-3">
-                <div className="flex items-center justify-between bg-[#f7f7f7] border border-black/8 p-3">
-                  <span className="text-[11px] font-semibold tracking-widest uppercase text-black/70">
-                    Degradé
-                  </span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={config.useGradientSecondary}
-                      onChange={(e) => setConfig((prev) => ({ ...prev, useGradientSecondary: e.target.checked }))}
-                      className="sr-only peer"
-                    />
-                    <div className="w-10 h-6 bg-red-500 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-                  </label>
-                </div>
-                {config.useGradientSecondary && (
-                  <div className="flex items-center gap-4 sm:gap-5 bg-[#f7f7f7] border border-black/8 p-3">
-                    <div className="relative w-14 h-14 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-black/20 shadow-sm cursor-pointer hover:scale-105 transition-transform">
-                      <input
-                        type="color"
-                        value={config.gradientSecondaryColor}
-                        onChange={(e) => setConfig((prev) => ({ ...prev, gradientSecondaryColor: e.target.value }))}
-                        className="absolute -top-2 -left-2 w-20 h-20 sm:w-16 sm:h-16 cursor-pointer opacity-0"
-                      />
-                      <div className="w-full h-full pointer-events-none" style={{ backgroundColor: config.gradientSecondaryColor }} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[12px] sm:text-[11px] text-black/50 sm:text-black/40 leading-relaxed">
-                        Segundo color del degradé.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <Separator className="bg-black/8" />
-
-            {/* Step 3 — Shield */}
-            <div className="order-first lg:order-none">
               <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase mb-3">
-                03 — Escudo del club
+                01 — Escudo del club
               </h2>
               <input
                 ref={fileInputRef}
@@ -856,10 +724,10 @@ export default function JerseyCustomizer() {
 
             <Separator className="bg-black/8" />
 
-            {/* Step 3b — Sponsors */}
-            <div className="order-2 lg:order-none">
+            {/* Step 6 — Sponsors */}
+            <div>
               <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase mb-3">
-                Sponsors
+                02 — Sponsors
               </h2>
               <div className="flex flex-col gap-3">
                 {config.sponsors.map((sp) => (
@@ -877,7 +745,7 @@ export default function JerseyCustomizer() {
                     {!sp.imageUrl ? (
                       <label
                         onClick={() => sponsorFileRefs.current[sp.id]?.click()}
-                        className="flex flex-col items-center justify-center gap-2 border border-dashed border-black/20 p-4 cursor-pointer hover:border-black/50 hover:bg-black/[0.015] transition-all"
+                        className="flex items-center justify-center gap-2 border border-dashed border-black/20 p-3 cursor-pointer hover:border-black/50 hover:bg-black/[0.015] transition-all"
                       >
                         {sponsorProcessingId === sp.id ? (
                           <>
@@ -888,7 +756,6 @@ export default function JerseyCustomizer() {
                           <>
                             <Upload className="w-5 h-5 text-black/25" />
                             <p className="text-xs font-semibold text-black/60 tracking-wide">Subir imagen de sponsor</p>
-                            <p className="text-[11px] text-black/35">JPG o PNG · Fondo se elimina automáticamente</p>
                           </>
                         )}
                       </label>
@@ -945,10 +812,142 @@ export default function JerseyCustomizer() {
 
             <Separator className="bg-black/8" />
 
+            {/* Step 2 — Color */}
+            <div>
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase">
+                  03 — Color de la remera
+                </h2>
+                <span className="text-[11px] text-black/45 font-medium uppercase">
+                  {config.color}
+                </span>
+              </div>
+              <div className="flex items-center gap-4 sm:gap-5">
+                <div className="relative w-14 h-14 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-black/20 shadow-sm cursor-pointer hover:scale-105 transition-transform">
+                  <input
+                    type="color"
+                    value={config.color}
+                    onChange={(e) => handleColorSelect(e.target.value)}
+                    className="absolute -top-2 -left-2 w-20 h-20 sm:w-16 sm:h-16 cursor-pointer opacity-0"
+                  />
+                  <div className="w-full h-full pointer-events-none" style={{ backgroundColor: config.color }} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[12px] sm:text-[11px] text-black/50 sm:text-black/40 leading-relaxed">
+                    Elegí cualquier color usando el selector continuo.
+                  </p>
+                </div>
+              </div>
+
+              {/* Gradient toggle */}
+              <div className="mt-3 space-y-3">
+                <div className="flex items-center justify-between bg-[#f7f7f7] border border-black/8 p-3">
+                  <span className="text-[11px] font-semibold tracking-widest uppercase text-black/70">
+                    Degradé
+                  </span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={config.useGradient}
+                      onChange={(e) => setConfig((prev) => ({ ...prev, useGradient: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-6 bg-red-500 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                  </label>
+                </div>
+                {config.useGradient && (
+                  <div className="flex items-center gap-4 sm:gap-5 bg-[#f7f7f7] border border-black/8 p-3">
+                    <div className="relative w-14 h-14 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-black/20 shadow-sm cursor-pointer hover:scale-105 transition-transform">
+                      <input
+                        type="color"
+                        value={config.gradientColor}
+                        onChange={(e) => setConfig((prev) => ({ ...prev, gradientColor: e.target.value }))}
+                        className="absolute -top-2 -left-2 w-20 h-20 sm:w-16 sm:h-16 cursor-pointer opacity-0"
+                      />
+                      <div className="w-full h-full pointer-events-none" style={{ backgroundColor: config.gradientColor }} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[12px] sm:text-[11px] text-black/50 sm:text-black/40 leading-relaxed">
+                        Segundo color del degradé.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Separator className="bg-black/8" />
+
+            {/* Step 2 — Secondary Color (Dorso) */}
+            <div>
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase">
+                  04 — Color del dorso
+                </h2>
+                <span className="text-[11px] text-black/45 font-medium uppercase">
+                  {config.secondaryColor}
+                </span>
+              </div>
+              <div className="flex items-center gap-4 sm:gap-5">
+                <div className="relative w-14 h-14 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-black/20 shadow-sm cursor-pointer hover:scale-105 transition-transform">
+                  <input
+                    type="color"
+                    value={config.secondaryColor}
+                    onChange={(e) => handleSecondaryColorSelect(e.target.value)}
+                    className="absolute -top-2 -left-2 w-20 h-20 sm:w-16 sm:h-16 cursor-pointer opacity-0"
+                  />
+                  <div className="w-full h-full pointer-events-none" style={{ backgroundColor: config.secondaryColor }} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[12px] sm:text-[11px] text-black/50 sm:text-black/40 leading-relaxed">
+                    Elegí el color contrastante para el dorso y recortes.
+                  </p>
+                </div>
+              </div>
+
+              {/* Gradient toggle for secondary */}
+              <div className="mt-3 space-y-3">
+                <div className="flex items-center justify-between bg-[#f7f7f7] border border-black/8 p-3">
+                  <span className="text-[11px] font-semibold tracking-widest uppercase text-black/70">
+                    Degradé
+                  </span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={config.useGradientSecondary}
+                      onChange={(e) => setConfig((prev) => ({ ...prev, useGradientSecondary: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-6 bg-red-500 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                  </label>
+                </div>
+                {config.useGradientSecondary && (
+                  <div className="flex items-center gap-4 sm:gap-5 bg-[#f7f7f7] border border-black/8 p-3">
+                    <div className="relative w-14 h-14 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-black/20 shadow-sm cursor-pointer hover:scale-105 transition-transform">
+                      <input
+                        type="color"
+                        value={config.gradientSecondaryColor}
+                        onChange={(e) => setConfig((prev) => ({ ...prev, gradientSecondaryColor: e.target.value }))}
+                        className="absolute -top-2 -left-2 w-20 h-20 sm:w-16 sm:h-16 cursor-pointer opacity-0"
+                      />
+                      <div className="w-full h-full pointer-events-none" style={{ backgroundColor: config.gradientSecondaryColor }} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[12px] sm:text-[11px] text-black/50 sm:text-black/40 leading-relaxed">
+                        Segundo color del degradé.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Separator className="bg-black/8" />
+
             {/* Step 4 — Number & Name */}
             <div>
               <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase mb-4">
-                04 — Número y nombre
+                05 — Número y nombre
               </h2>
               <div className="flex flex-col gap-4">
                 {/* Number with toggle */}
@@ -1086,7 +1085,7 @@ export default function JerseyCustomizer() {
             <div>
               <div className="flex items-baseline justify-between mb-3">
                 <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase">
-                  05 — Color de letras
+                  06 — Color de letras
                 </h2>
               </div>
               
