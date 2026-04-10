@@ -8,13 +8,17 @@ import { Separator } from "@/components/ui/separator";
 import { Upload, Download, Loader2, X, Plus, GripVertical } from "lucide-react";
 import JerseyPreview from "./JerseyPreview";
 import { isLight, recolorPixels } from "./JerseyPreview";
-import { JerseyConfig, TextElement, FontOption } from "./types";
+import { JerseyConfig, TextElement, SponsorElement, FontOption } from "./types";
 import { removeBackground } from "@imgly/background-removal";
 
 export default function JerseyCustomizer() {
   const [config, setConfig] = useState<JerseyConfig>({
     color: "#111111",
     secondaryColor: "#f5f5f5",
+    useGradient: false,
+    gradientColor: "#333333",
+    useGradientSecondary: false,
+    gradientSecondaryColor: "#cccccc",
     letterColor: "#f5f5f5",
     letterColorBack: "#111111",
     shieldUrl: null,
@@ -22,11 +26,10 @@ export default function JerseyCustomizer() {
     shieldPosition: "right",
     number: "10",
     showNumber: true,
-    showFrontNumber: false,
-    frontNumberPosition: "left",
     textElements: [
       { id: "1", text: "MI EQUIPO", font: "arial-black", size: 1, x: 50, y: 77, target: "back" },
     ],
+    sponsors: [],
   });
 
   const nextTextId = useRef(2);
@@ -58,12 +61,45 @@ export default function JerseyCustomizer() {
     }));
   };
 
-  const handleTextMove = useCallback((id: string, x: number, y: number) => {
+  const handleTextMove = useCallback((id: string, x: number, y: number, target?: "front" | "back") => {
     setConfig((prev) => ({
       ...prev,
-      textElements: prev.textElements.map((el) => (el.id === id ? { ...el, x, y } : el)),
+      textElements: prev.textElements.map((el) => {
+        if (el.id !== id) return el;
+        const updates: Partial<TextElement> = { x, y };
+        if (target) updates.target = target;
+        return { ...el, ...updates };
+      }),
     }));
   }, []);
+
+  const nextSponsorId = useRef(1);
+
+  const handleSponsorMove = useCallback((id: string, x: number, y: number, target?: "front" | "back") => {
+    setConfig((prev) => ({
+      ...prev,
+      sponsors: prev.sponsors.map((s) => {
+        if (s.id !== id) return s;
+        const updates: Partial<SponsorElement> = { x, y };
+        if (target) updates.target = target;
+        return { ...s, ...updates };
+      }),
+    }));
+  }, []);
+
+  const handleRemoveSponsor = (id: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      sponsors: prev.sponsors.filter((s) => s.id !== id),
+    }));
+  };
+
+  const handleUpdateSponsor = (id: string, updates: Partial<SponsorElement>) => {
+    setConfig((prev) => ({
+      ...prev,
+      sponsors: prev.sponsors.map((s) => (s.id === id ? { ...s, ...updates } : s)),
+    }));
+  };
 
   const [shieldFileName, setShieldFileName] = useState<string | null>(null);
   const [isRemovingBg, setIsRemovingBg] = useState(false);
@@ -132,6 +168,50 @@ export default function JerseyCustomizer() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const [sponsorProcessingId, setSponsorProcessingId] = useState<string | null>(null);
+  const sponsorFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const handleAddSponsor = () => {
+    const id = `sp-${nextSponsorId.current++}`;
+    // Trigger file picker immediately after adding
+    setTimeout(() => sponsorFileRefs.current[id]?.click(), 50);
+    const newSponsor: SponsorElement = {
+      id,
+      imageUrl: "",
+      fileName: "",
+      x: 50,
+      y: 45,
+      size: 1,
+      target: "front",
+    };
+    setConfig((prev) => ({ ...prev, sponsors: [...prev.sponsors, newSponsor] }));
+  };
+
+  const handleSponsorUpload = useCallback(async (sponsorId: string, file: File) => {
+    setSponsorProcessingId(sponsorId);
+    try {
+      let url: string;
+      if (file.type === "image/png") {
+        url = URL.createObjectURL(file);
+      } else {
+        try {
+          const blob = await removeBackground(file);
+          url = URL.createObjectURL(blob);
+        } catch {
+          url = URL.createObjectURL(file);
+        }
+      }
+      setConfig((prev) => ({
+        ...prev,
+        sponsors: prev.sponsors.map((s) =>
+          s.id === sponsorId ? { ...s, imageUrl: url, fileName: file.name } : s
+        ),
+      }));
+    } finally {
+      setSponsorProcessingId(null);
+    }
+  }, []);
+
   const handleDownload = useCallback(async () => {
     const loadImg = (src: string): Promise<HTMLImageElement> =>
       new Promise((res, rej) => {
@@ -159,10 +239,12 @@ export default function JerseyCustomizer() {
       const outW = Math.max(halfW, backSw);
       const imgH = templateImg.naturalHeight;
 
-      const fpUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.color, outW, imgH, config.secondaryColor);
-      const bpUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.color, outW, imgH, config.secondaryColor);
-      const fsUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.secondaryColor, outW, imgH, config.color);
-      const bsUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.secondaryColor, outW, imgH, config.color);
+      const pGrad = config.useGradient ? config.gradientColor : undefined;
+      const sGrad = config.useGradientSecondary ? config.gradientSecondaryColor : undefined;
+      const fpUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.color, outW, imgH, config.secondaryColor, pGrad, sGrad);
+      const bpUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.color, outW, imgH, config.secondaryColor, pGrad, sGrad);
+      const fsUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.secondaryColor, outW, imgH, config.color, sGrad, pGrad);
+      const bsUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.secondaryColor, outW, imgH, config.color, sGrad, pGrad);
 
       const fpImg = await loadImg(fpUrl);
       const bpImg = await loadImg(bpUrl);
@@ -210,26 +292,23 @@ export default function JerseyCustomizer() {
         } catch { /* skip */ }
       }
 
-      // Front Number on both fronts
-      if (config.showFrontNumber && config.number) {
-        const drawFrontNumber = (cell: { x: number; y: number }, tc: string) => {
-          ctx.save();
-          // Fixed positions for front number: left -> 39%, center -> 57%, right -> 75% (center points)
-          // 57% center point gives 46% start X for a 22% width element (46 + 11 = 57)
-          const cx = cell.x + (config.frontNumberPosition === "left" ? CW * 0.39 : config.frontNumberPosition === "center" ? CW * 0.57 : CW * 0.75);
-          // Made font larger (was 0.12 -> 0.16) to match larger shield
-          ctx.font = `900 ${Math.round(CH * 0.16)}px 'Impact', 'Arial Black', sans-serif`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = tc;
-          // Scale slightly taller like the back number
-          ctx.translate(cx, cell.y + CH * 0.37); // Center Y of the shield area (adjusted slightly for larger size)
-          ctx.scale(1, 1.15);
-          ctx.fillText(config.number, 0, 0);
-          ctx.restore();
-        };
-        drawFrontNumber(cells[0], config.letterColor);
-        drawFrontNumber(cells[2], config.letterColorBack);
+      // Sponsors
+      for (const sp of config.sponsors) {
+        if (!sp.imageUrl) continue;
+        try {
+          const spImg = await loadImg(sp.imageUrl);
+          const spW = Math.round(CW * 0.15 * sp.size);
+          const spH = Math.round(spW * (spImg.naturalHeight / spImg.naturalWidth));
+          const spX = CW * (sp.x / 100) - spW / 2;
+          const spY = CH * (sp.y / 100) - spH / 2;
+          if (sp.target === "front") {
+            ctx.drawImage(spImg, cells[0].x + spX, cells[0].y + spY, spW, spH);
+            ctx.drawImage(spImg, cells[2].x + spX, cells[2].y + spY, spW, spH);
+          } else {
+            ctx.drawImage(spImg, cells[1].x + spX, cells[1].y + spY, spW, spH);
+            ctx.drawImage(spImg, cells[3].x + spX, cells[3].y + spY, spW, spH);
+          }
+        } catch { /* skip */ }
       }
 
       // Back number on both backs
@@ -326,10 +405,12 @@ export default function JerseyCustomizer() {
       const outW = Math.max(halfW, backSw);
       const imgH = templateImg.naturalHeight;
 
-      const fpUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.color, outW, imgH, config.secondaryColor);
-      const bpUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.color, outW, imgH, config.secondaryColor);
-      const fsUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.secondaryColor, outW, imgH, config.color);
-      const bsUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.secondaryColor, outW, imgH, config.color);
+      const pGrad2 = config.useGradient ? config.gradientColor : undefined;
+      const sGrad2 = config.useGradientSecondary ? config.gradientSecondaryColor : undefined;
+      const fpUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.color, outW, imgH, config.secondaryColor, pGrad2, sGrad2);
+      const bpUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.color, outW, imgH, config.secondaryColor, pGrad2, sGrad2);
+      const fsUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.secondaryColor, outW, imgH, config.color, sGrad2, pGrad2);
+      const bsUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.secondaryColor, outW, imgH, config.color, sGrad2, pGrad2);
 
       const fpImg = await loadImg(fpUrl);
       const bpImg = await loadImg(bpUrl);
@@ -375,22 +456,23 @@ export default function JerseyCustomizer() {
         } catch { /* skip */ }
       }
 
-      // Front Number on both fronts
-      if (config.showFrontNumber && config.number) {
-        const drawFrontNumber = (cell: { x: number; y: number }, tc: string) => {
-          ctx.save();
-          const cx = cell.x + (config.frontNumberPosition === "left" ? CW * 0.39 : config.frontNumberPosition === "center" ? CW * 0.57 : CW * 0.75);
-          ctx.font = `900 ${Math.round(CH * 0.16)}px 'Impact', 'Arial Black', sans-serif`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = tc;
-          ctx.translate(cx, cell.y + CH * 0.37);
-          ctx.scale(1, 1.15);
-          ctx.fillText(config.number, 0, 0);
-          ctx.restore();
-        };
-        drawFrontNumber(cells[0], config.letterColor);
-        drawFrontNumber(cells[2], config.letterColorBack);
+      // Sponsors
+      for (const sp of config.sponsors) {
+        if (!sp.imageUrl) continue;
+        try {
+          const spImg = await loadImg(sp.imageUrl);
+          const spW = Math.round(CW * 0.15 * sp.size);
+          const spH = Math.round(spW * (spImg.naturalHeight / spImg.naturalWidth));
+          const spX = CW * (sp.x / 100) - spW / 2;
+          const spY = CH * (sp.y / 100) - spH / 2;
+          if (sp.target === "front") {
+            ctx.drawImage(spImg, cells[0].x + spX, cells[0].y + spY, spW, spH);
+            ctx.drawImage(spImg, cells[2].x + spX, cells[2].y + spY, spW, spH);
+          } else {
+            ctx.drawImage(spImg, cells[1].x + spX, cells[1].y + spY, spW, spH);
+            ctx.drawImage(spImg, cells[3].x + spX, cells[3].y + spY, spW, spH);
+          }
+        } catch { /* skip */ }
       }
 
       // Back number on both backs
@@ -518,6 +600,7 @@ export default function JerseyCustomizer() {
                 config={config}
                 className="w-full max-w-[520px]"
                 onTextMove={handleTextMove}
+                onSponsorMove={handleSponsorMove}
               />
             </div>
           </div>
@@ -551,6 +634,42 @@ export default function JerseyCustomizer() {
                   </p>
                 </div>
               </div>
+
+              {/* Gradient toggle */}
+              <div className="mt-3 space-y-3">
+                <div className="flex items-center justify-between bg-[#f7f7f7] border border-black/8 p-3">
+                  <span className="text-[11px] font-semibold tracking-widest uppercase text-black/70">
+                    Degradé
+                  </span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={config.useGradient}
+                      onChange={(e) => setConfig((prev) => ({ ...prev, useGradient: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-6 bg-red-500 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                  </label>
+                </div>
+                {config.useGradient && (
+                  <div className="flex items-center gap-4 sm:gap-5 bg-[#f7f7f7] border border-black/8 p-3">
+                    <div className="relative w-14 h-14 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-black/20 shadow-sm cursor-pointer hover:scale-105 transition-transform">
+                      <input
+                        type="color"
+                        value={config.gradientColor}
+                        onChange={(e) => setConfig((prev) => ({ ...prev, gradientColor: e.target.value }))}
+                        className="absolute -top-2 -left-2 w-20 h-20 sm:w-16 sm:h-16 cursor-pointer opacity-0"
+                      />
+                      <div className="w-full h-full pointer-events-none" style={{ backgroundColor: config.gradientColor }} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[12px] sm:text-[11px] text-black/50 sm:text-black/40 leading-relaxed">
+                        Segundo color del degradé.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <Separator className="bg-black/8" />
@@ -581,12 +700,48 @@ export default function JerseyCustomizer() {
                   </p>
                 </div>
               </div>
+
+              {/* Gradient toggle for secondary */}
+              <div className="mt-3 space-y-3">
+                <div className="flex items-center justify-between bg-[#f7f7f7] border border-black/8 p-3">
+                  <span className="text-[11px] font-semibold tracking-widest uppercase text-black/70">
+                    Degradé
+                  </span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={config.useGradientSecondary}
+                      onChange={(e) => setConfig((prev) => ({ ...prev, useGradientSecondary: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-6 bg-red-500 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                  </label>
+                </div>
+                {config.useGradientSecondary && (
+                  <div className="flex items-center gap-4 sm:gap-5 bg-[#f7f7f7] border border-black/8 p-3">
+                    <div className="relative w-14 h-14 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-black/20 shadow-sm cursor-pointer hover:scale-105 transition-transform">
+                      <input
+                        type="color"
+                        value={config.gradientSecondaryColor}
+                        onChange={(e) => setConfig((prev) => ({ ...prev, gradientSecondaryColor: e.target.value }))}
+                        className="absolute -top-2 -left-2 w-20 h-20 sm:w-16 sm:h-16 cursor-pointer opacity-0"
+                      />
+                      <div className="w-full h-full pointer-events-none" style={{ backgroundColor: config.gradientSecondaryColor }} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[12px] sm:text-[11px] text-black/50 sm:text-black/40 leading-relaxed">
+                        Segundo color del degradé.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <Separator className="bg-black/8" />
 
             {/* Step 3 — Shield */}
-            <div>
+            <div className="order-first lg:order-none">
               <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase mb-3">
                 03 — Escudo del club
               </h2>
@@ -601,52 +756,43 @@ export default function JerseyCustomizer() {
               {!config.shieldUrl ? (
                 <label
                   htmlFor="shield-upload"
-                  className="flex flex-col items-center justify-center gap-3 border border-dashed border-black/20 p-8 sm:p-8 cursor-pointer hover:border-black/50 hover:bg-black/[0.015] transition-all min-h-[140px]"
+                  className="flex items-center justify-center gap-2 border border-dashed border-black/20 p-3 cursor-pointer hover:border-black/50 hover:bg-black/[0.015] transition-all"
                 >
                   {isRemovingBg ? (
                     <>
-                      <Loader2 className="w-6 h-6 sm:w-5 sm:h-5 text-black/40 animate-spin" />
-                      <div className="text-center">
-                        <p className="text-sm sm:text-xs text-black/45 font-medium tracking-wide">
-                          Procesando escudo...
-                        </p>
-                        <p className="text-[11px] sm:text-[10px] text-black/30 mt-1">
-                          Descargando modelo de IA (~4MB, puede tardar 30-60s la primera vez)
-                        </p>
-                      </div>
+                      <Loader2 className="w-5 h-5 text-black/40 animate-spin" />
+                      <p className="text-[11px] text-black/45 font-medium">Procesando...</p>
                     </>
                   ) : (
                     <>
-                      <Upload className="w-6 h-6 sm:w-5 sm:h-5 text-black/25" />
-                      <div className="text-center">
-                        <p className="text-sm sm:text-xs font-semibold text-black/60 tracking-wide">
-                          Subir escudo del club
-                        </p>
-                        <p className="text-[12px] sm:text-[11px] text-black/35 mt-1">
-                          JPG o PNG · El fondo se elimina automáticamente
-                        </p>
-                      </div>
+                      <Upload className="w-5 h-5 text-black/25" />
+                      <p className="text-xs font-semibold text-black/60 tracking-wide">
+                        Subir escudo del club
+                      </p>
                     </>
                   )}
                 </label>
               ) : (
-                <div className="flex items-center gap-3 border border-black/10 p-4 sm:p-3 bg-black/[0.015]">
-                  <div className="w-12 h-12 bg-white border border-black/8 flex items-center justify-center flex-shrink-0">
+                <div className="flex items-center gap-3 border border-black/10 p-3 bg-black/[0.015]">
+                  <div className="w-10 h-10 bg-white border border-black/8 flex items-center justify-center flex-shrink-0">
                     <img
                       src={config.shieldUrl}
                       alt="Escudo"
-                      className="w-10 h-10 object-contain"
+                      className="w-8 h-8 object-contain"
                     />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold truncate text-black/70">
-                      {shieldFileName ?? "Escudo cargado"}
-                    </p>
-                    <p className="text-[11px] text-black/40 mt-0.5">✓ Fondo eliminado</p>
-                  </div>
+                  <p className="text-xs font-semibold truncate text-black/70 flex-1">
+                    {shieldFileName ?? "Escudo cargado"}
+                  </p>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-[10px] text-black/40 hover:text-black/70 underline flex-shrink-0"
+                  >
+                    Cambiar
+                  </button>
                   <button
                     onClick={handleRemoveShield}
-                    className="text-black/25 hover:text-black transition-colors p-1"
+                    className="text-black/25 hover:text-red-500 transition-colors p-1 flex-shrink-0"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -710,6 +856,95 @@ export default function JerseyCustomizer() {
 
             <Separator className="bg-black/8" />
 
+            {/* Step 3b — Sponsors */}
+            <div className="order-2 lg:order-none">
+              <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase mb-3">
+                Sponsors
+              </h2>
+              <div className="flex flex-col gap-3">
+                {config.sponsors.map((sp) => (
+                  <div key={sp.id} className="flex flex-col gap-2 bg-[#f7f7f7] border border-black/8 p-4 sm:p-3">
+                    <input
+                      ref={(node) => { sponsorFileRefs.current[sp.id] = node; }}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleSponsorUpload(sp.id, file);
+                      }}
+                      className="hidden"
+                    />
+                    {!sp.imageUrl ? (
+                      <label
+                        onClick={() => sponsorFileRefs.current[sp.id]?.click()}
+                        className="flex flex-col items-center justify-center gap-2 border border-dashed border-black/20 p-4 cursor-pointer hover:border-black/50 hover:bg-black/[0.015] transition-all"
+                      >
+                        {sponsorProcessingId === sp.id ? (
+                          <>
+                            <Loader2 className="w-5 h-5 text-black/40 animate-spin" />
+                            <p className="text-[11px] text-black/45 font-medium">Procesando...</p>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-5 h-5 text-black/25" />
+                            <p className="text-xs font-semibold text-black/60 tracking-wide">Subir imagen de sponsor</p>
+                            <p className="text-[11px] text-black/35">JPG o PNG · Fondo se elimina automáticamente</p>
+                          </>
+                        )}
+                      </label>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white border border-black/8 flex items-center justify-center flex-shrink-0">
+                            <img src={sp.imageUrl} alt="Sponsor" className="w-8 h-8 object-contain" />
+                          </div>
+                          <p className="text-xs font-semibold truncate text-black/70 flex-1">{sp.fileName}</p>
+                          <button
+                            onClick={() => sponsorFileRefs.current[sp.id]?.click()}
+                            className="text-[10px] text-black/40 hover:text-black/70 underline flex-shrink-0"
+                          >
+                            Cambiar
+                          </button>
+                          <button
+                            onClick={() => handleRemoveSponsor(sp.id)}
+                            className="text-black/25 hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] text-black/40 whitespace-nowrap">Tamaño</span>
+                          <input
+                            type="range"
+                            min="0.3"
+                            max="3"
+                            step="0.1"
+                            value={sp.size}
+                            onChange={(e) => handleUpdateSponsor(sp.id, { size: parseFloat(e.target.value) })}
+                            className="flex-1 h-1 accent-black cursor-pointer"
+                          />
+                          <span className="text-[10px] text-black/40 w-8 text-right">{sp.size.toFixed(1)}x</span>
+                        </div>
+                        <p className="text-[10px] text-black/30 flex items-center gap-1">
+                          <GripVertical className="w-3 h-3" />
+                          Arrastrá el sponsor en la previsualización para posicionarlo
+                        </p>
+                      </>
+                    )}
+                  </div>
+                ))}
+                <button
+                  onClick={handleAddSponsor}
+                  className="flex items-center justify-center gap-2 border border-dashed border-black/20 p-3 text-[11px] font-semibold tracking-widest uppercase text-black/50 hover:border-black/40 hover:text-black/70 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Agregar sponsor
+                </button>
+              </div>
+            </div>
+
+            <Separator className="bg-black/8" />
+
             {/* Step 4 — Number & Name */}
             <div>
               <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase mb-4">
@@ -754,54 +989,6 @@ export default function JerseyCustomizer() {
                   )}
                 </div>
 
-                {/* Front Number options */}
-                <div className="flex flex-col gap-2 bg-[#f7f7f7] border border-black/8 p-4 sm:p-3">
-                  <div className="flex items-center justify-between">
-                    <Label
-                      className="text-[12px] sm:text-[11px] font-semibold tracking-widest uppercase text-black/70"
-                    >
-                      Número en el frente
-                    </Label>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={config.showFrontNumber}
-                        onChange={(e) => setConfig((prev) => ({ ...prev, showFrontNumber: e.target.checked }))}
-                        className="sr-only peer"
-                      />
-                      <div className="w-10 h-6 bg-red-500 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-                    </label>
-                  </div>
-
-                  {/* Front Number Position */}
-                  {config.showFrontNumber && (
-                    <div className="mt-2 pt-4 sm:pt-2 border-t border-black/10">
-                      <span className="text-[12px] sm:text-[11px] font-semibold tracking-widest uppercase text-black/60 block mb-3 sm:mb-2">
-                        Posición del número (Frente)
-                      </span>
-                      <div className="flex gap-2">
-                        {[
-                          { value: "left", label: "Izquierda" },
-                          { value: "center", label: "Centro" },
-                          { value: "right", label: "Derecha" },
-                        ].map((pos) => (
-                          <button
-                            key={pos.value}
-                            onClick={() => setConfig((prev) => ({ ...prev, frontNumberPosition: pos.value as "left" | "center" | "right" }))}
-                            className={`flex-1 py-3 sm:py-2 px-2 text-[12px] sm:text-[11px] font-medium uppercase tracking-wide border transition-colors ${
-                              config.frontNumberPosition === pos.value
-                                ? "bg-black text-white border-black"
-                                : "bg-white text-black/60 border-black/20 hover:border-black/40"
-                            }`}
-                          >
-                            {pos.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 {/* Text Elements */}
                 <div className="flex flex-col gap-3">
                   {config.textElements.map((el) => (
@@ -825,30 +1012,6 @@ export default function JerseyCustomizer() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {/* Front/Back toggle */}
-                        <div className="flex border border-black/20">
-                          <button
-                            onClick={() => handleUpdateText(el.id, { target: "front" })}
-                            className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
-                              el.target === "front"
-                                ? "bg-black text-white"
-                                : "bg-white text-black/50 hover:text-black/70"
-                            }`}
-                          >
-                            Frente
-                          </button>
-                          <button
-                            onClick={() => handleUpdateText(el.id, { target: "back" })}
-                            className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
-                              el.target === "back"
-                                ? "bg-black text-white"
-                                : "bg-white text-black/50 hover:text-black/70"
-                            }`}
-                          >
-                            Espalda
-                          </button>
-                        </div>
-
                         {/* Font selector */}
                         <div className="relative flex-1">
                           <select

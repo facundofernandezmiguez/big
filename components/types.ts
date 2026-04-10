@@ -10,9 +10,23 @@ export interface TextElement {
   target: "front" | "back";
 }
 
+export interface SponsorElement {
+  id: string;
+  imageUrl: string;
+  fileName: string;
+  x: number;  // % from left (0-100)
+  y: number;  // % from top (0-100)
+  size: number; // scale factor, 1 = default (~15% of jersey width)
+  target: "front" | "back";
+}
+
 export interface JerseyConfig {
   color: string;
   secondaryColor: string;
+  useGradient: boolean;
+  gradientColor: string;
+  useGradientSecondary: boolean;
+  gradientSecondaryColor: string;
   letterColor: string;
   letterColorBack: string;
   shieldUrl: string | null;
@@ -20,7 +34,6 @@ export interface JerseyConfig {
   shieldPosition: "center" | "left" | "right";
   number: string;
   showNumber: boolean;
-  showFrontNumber: boolean;
-  frontNumberPosition: "center" | "left" | "right";
   textElements: TextElement[];
+  sponsors: SponsorElement[];
 }

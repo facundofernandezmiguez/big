@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { JerseyConfig, TextElement, FontOption } from "./types";
+import { JerseyConfig, TextElement, SponsorElement, FontOption } from "./types";
 
 interface JerseyPreviewProps {
   config: JerseyConfig;
   className?: string;
-  onTextMove?: (id: string, x: number, y: number) => void;
+  onTextMove?: (id: string, x: number, y: number, target?: "front" | "back") => void;
+  onSponsorMove?: (id: string, x: number, y: number, target?: "front" | "back") => void;
 }
 
 const FONT_FAMILY_MAP: Record<FontOption, string> = {
@@ -79,7 +80,9 @@ export function recolorPixels(
   sx: number, sy: number, sw: number, sh: number,
   color: string,
   outW: number, outH: number,
-  dorsoColor?: string
+  dorsoColor?: string,
+  gradientColor2?: string,
+  dorsoGradientColor2?: string
 ): string {
   const out = document.createElement("canvas");
   out.width = outW;
@@ -93,9 +96,13 @@ export function recolorPixels(
   const imageData = ctx.getImageData(0, 0, outW, outH);
   const d = imageData.data;
   const { r, g, b } = hexToRgb(color);
+  const hasGradient = !!gradientColor2;
+  const gc = hasGradient ? hexToRgb(gradientColor2) : { r: 0, g: 0, b: 0 };
 
   if (dorsoColor) {
     const { r: dr, g: dg, b: db } = hexToRgb(dorsoColor);
+    const hasDorsoGradient = !!dorsoGradientColor2;
+    const dgc = hasDorsoGradient ? hexToRgb(dorsoGradientColor2) : { r: 0, g: 0, b: 0 };
     const total = outW * outH;
 
     // Pre-compute brightness
@@ -244,36 +251,55 @@ export function recolorPixels(
     for (let i = 0; i < total; i++) {
       const p = i * 4;
       const a = bri[i];
+      const py = Math.floor(i / outW);
+      const gt = outH > 1 ? py / (outH - 1) : 0;
+
+      // Interpolated body color (gradient or solid)
+      const br2 = hasGradient ? Math.round(r * (1 - gt) + gc.r * gt) : r;
+      const bg2 = hasGradient ? Math.round(g * (1 - gt) + gc.g * gt) : g;
+      const bb2 = hasGradient ? Math.round(b * (1 - gt) + gc.b * gt) : b;
+
+      // Interpolated dorso color (gradient or solid)
+      const ddr = hasDorsoGradient ? Math.round(dr * (1 - gt) + dgc.r * gt) : dr;
+      const ddg = hasDorsoGradient ? Math.round(dg * (1 - gt) + dgc.g * gt) : dg;
+      const ddb = hasDorsoGradient ? Math.round(db * (1 - gt) + dgc.b * gt) : db;
 
       if (a < 200) {
         // Shirt body
-        d[p] = r; d[p + 1] = g; d[p + 2] = b; d[p + 3] = 255;
+        d[p] = br2; d[p + 1] = bg2; d[p + 2] = bb2; d[p + 3] = 255;
       } else if (isBg[i]) {
         // Background → transparent / semi-transparent edge
-        d[p] = r; d[p + 1] = g; d[p + 2] = b;
+        d[p] = br2; d[p + 1] = bg2; d[p + 2] = bb2;
         d[p + 3] = a < 240 ? Math.round(((240 - a) / 40) * 255) : 0;
       } else {
         // Dorso (enclosed area)
         if (a >= 240) {
-          d[p] = dr; d[p + 1] = dg; d[p + 2] = db; d[p + 3] = 255;
+          d[p] = ddr; d[p + 1] = ddg; d[p + 2] = ddb; d[p + 3] = 255;
         } else {
           // Anti-aliased edge between body and dorso — blend
           const t = (a - 200) / 40;
-          d[p] = Math.round(r * (1 - t) + dr * t);
-          d[p + 1] = Math.round(g * (1 - t) + dg * t);
-          d[p + 2] = Math.round(b * (1 - t) + db * t);
+          d[p] = Math.round(br2 * (1 - t) + ddr * t);
+          d[p + 1] = Math.round(bg2 * (1 - t) + ddg * t);
+          d[p + 2] = Math.round(bb2 * (1 - t) + ddb * t);
           d[p + 3] = 255;
         }
       }
     }
   } else {
     // Original behavior without dorso
-    for (let i = 0; i < d.length; i += 4) {
-      const avg = (d[i] + d[i + 1] + d[i + 2]) / 3;
-      d[i] = r; d[i + 1] = g; d[i + 2] = b;
-      if (avg < 200) d[i + 3] = 255;
-      else if (avg < 240) d[i + 3] = Math.round(((240 - avg) / 40) * 255);
-      else d[i + 3] = 0;
+    const total2 = outW * outH;
+    for (let i = 0; i < total2; i++) {
+      const p = i * 4;
+      const avg = (d[p] + d[p + 1] + d[p + 2]) / 3;
+      const py = Math.floor(i / outW);
+      const gt = outH > 1 ? py / (outH - 1) : 0;
+      const cr = hasGradient ? Math.round(r * (1 - gt) + gc.r * gt) : r;
+      const cg = hasGradient ? Math.round(g * (1 - gt) + gc.g * gt) : g;
+      const cb = hasGradient ? Math.round(b * (1 - gt) + gc.b * gt) : b;
+      d[p] = cr; d[p + 1] = cg; d[p + 2] = cb;
+      if (avg < 200) d[p + 3] = 255;
+      else if (avg < 240) d[p + 3] = Math.round(((240 - avg) / 40) * 255);
+      else d[p + 3] = 0;
     }
   }
 
@@ -282,7 +308,7 @@ export function recolorPixels(
 }
 
 // ─── Hook: generates front + back data URLs for a given color ───
-function useRecoloredPair(color: string, dorsoColor: string) {
+function useRecoloredPair(color: string, dorsoColor: string, gradientColor2?: string, dorsoGradientColor2?: string) {
   const [frontUrl, setFrontUrl] = useState("");
   const [backUrl, setBackUrl] = useState("");
 
@@ -296,21 +322,21 @@ function useRecoloredPair(color: string, dorsoColor: string) {
       const backSw = _imgW - halfW;
       const outW = Math.max(frontSw, backSw);
 
-      setFrontUrl(recolorPixels(staging, 0, 0, frontSw, _imgH, color, outW, _imgH, dorsoColor));
-      setBackUrl(recolorPixels(staging, halfW, 0, backSw, _imgH, color, outW, _imgH, dorsoColor));
+      setFrontUrl(recolorPixels(staging, 0, 0, frontSw, _imgH, color, outW, _imgH, dorsoColor, gradientColor2, dorsoGradientColor2));
+      setBackUrl(recolorPixels(staging, halfW, 0, backSw, _imgH, color, outW, _imgH, dorsoColor, gradientColor2, dorsoGradientColor2));
     });
     return () => { cancelled = true; };
-  }, [color, dorsoColor]);
+  }, [color, dorsoColor, gradientColor2, dorsoGradientColor2]);
 
   return { frontUrl, backUrl };
 }
 
 // ─── Component ───
-export default function JerseyPreview({ config, className, onTextMove }: JerseyPreviewProps) {
-  const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number; containerRect: DOMRect } | null>(null);
+export default function JerseyPreview({ config, className, onTextMove, onSponsorMove }: JerseyPreviewProps) {
+  const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number; containerRect: DOMRect; origTarget: "front" | "back"; moveCb: (id: string, x: number, y: number, target?: "front" | "back") => void } | null>(null);
   const containerRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, el: TextElement, containerKey: string) => {
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, item: { id: string; x: number; y: number; target: "front" | "back" }, containerKey: string, moveCb: (id: string, x: number, y: number, target?: "front" | "back") => void) => {
     e.preventDefault();
     e.stopPropagation();
     const container = containerRefs.current[containerKey];
@@ -318,7 +344,7 @@ export default function JerseyPreview({ config, className, onTextMove }: JerseyP
     const rect = container.getBoundingClientRect();
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    dragRef.current = { id: el.id, startX: clientX, startY: clientY, origX: el.x, origY: el.y, containerRect: rect };
+    dragRef.current = { id: item.id, startX: clientX, startY: clientY, origX: item.x, origY: item.y, containerRect: rect, origTarget: item.target, moveCb };
 
     const handleMove = (ev: MouseEvent | TouchEvent) => {
       if (!dragRef.current) return;
@@ -326,12 +352,39 @@ export default function JerseyPreview({ config, className, onTextMove }: JerseyP
       const cy = 'touches' in ev ? ev.touches[0].clientY : (ev as MouseEvent).clientY;
       const dx = cx - dragRef.current.startX;
       const dy = cy - dragRef.current.startY;
-      const newX = Math.max(0, Math.min(100, dragRef.current.origX + (dx / dragRef.current.containerRect.width) * 100));
-      const newY = Math.max(0, Math.min(100, dragRef.current.origY + (dy / dragRef.current.containerRect.height) * 100));
-      onTextMove?.(dragRef.current.id, newX, newY);
+      const newX = dragRef.current.origX + (dx / dragRef.current.containerRect.width) * 100;
+      const newY = dragRef.current.origY + (dy / dragRef.current.containerRect.height) * 100;
+      dragRef.current.moveCb(dragRef.current.id, newX, newY);
     };
 
-    const handleEnd = () => {
+    const handleEnd = (ev: MouseEvent | TouchEvent) => {
+      if (dragRef.current) {
+        const cx = 'touches' in ev && ev.changedTouches?.length ? ev.changedTouches[0].clientX : (ev as MouseEvent).clientX;
+        const cy = 'touches' in ev && ev.changedTouches?.length ? ev.changedTouches[0].clientY : (ev as MouseEvent).clientY;
+        const origTarget = dragRef.current.origTarget;
+        const oppositeType = origTarget === "back" ? "front" : "back";
+
+        let switched = false;
+        for (const [key, ref] of Object.entries(containerRefs.current)) {
+          if (!ref || !key.startsWith(oppositeType + "-")) continue;
+          const r = ref.getBoundingClientRect();
+          if (cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom) {
+            const newX = Math.max(0, Math.min(100, ((cx - r.left) / r.width) * 100));
+            const newY = Math.max(0, Math.min(100, ((cy - r.top) / r.height) * 100));
+            dragRef.current.moveCb(dragRef.current.id, newX, newY, oppositeType);
+            switched = true;
+            break;
+          }
+        }
+
+        if (!switched) {
+          const dx = cx - dragRef.current.startX;
+          const dy = cy - dragRef.current.startY;
+          const newX = Math.max(0, Math.min(100, dragRef.current.origX + (dx / dragRef.current.containerRect.width) * 100));
+          const newY = Math.max(0, Math.min(100, dragRef.current.origY + (dy / dragRef.current.containerRect.height) * 100));
+          dragRef.current.moveCb(dragRef.current.id, newX, newY);
+        }
+      }
       dragRef.current = null;
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleEnd);
@@ -343,7 +396,7 @@ export default function JerseyPreview({ config, className, onTextMove }: JerseyP
     window.addEventListener('mouseup', handleEnd);
     window.addEventListener('touchmove', handleMove, { passive: false });
     window.addEventListener('touchend', handleEnd);
-  }, [onTextMove]);
+  }, []);
 
   const renderTextElements = (target: "front" | "back", containerKey: string, textColor: string) => {
     return config.textElements
@@ -362,16 +415,40 @@ export default function JerseyPreview({ config, className, onTextMove }: JerseyP
             whiteSpace: "nowrap",
             zIndex: 10,
           }}
-          onMouseDown={(e) => handleDragStart(e, el, containerKey)}
-          onTouchStart={(e) => handleDragStart(e, el, containerKey)}
+          onMouseDown={(e) => onTextMove && handleDragStart(e, el, containerKey, onTextMove)}
+          onTouchStart={(e) => onTextMove && handleDragStart(e, el, containerKey, onTextMove)}
         >
           {el.text}
         </div>
       ));
   };
 
-  const primary = useRecoloredPair(config.color, config.secondaryColor);
-  const secondary = useRecoloredPair(config.secondaryColor, config.color);
+  const renderSponsorElements = (target: "front" | "back", containerKey: string) => {
+    return config.sponsors
+      .filter((sp) => sp.target === target && sp.imageUrl)
+      .map((sp) => (
+        <div
+          key={sp.id}
+          className="absolute cursor-grab active:cursor-grabbing select-none"
+          style={{
+            left: `${sp.x}%`,
+            top: `${sp.y}%`,
+            transform: "translate(-50%, -50%)",
+            width: `${15 * sp.size}%`,
+            zIndex: 10,
+          }}
+          onMouseDown={(e) => onSponsorMove && handleDragStart(e, sp, containerKey, onSponsorMove)}
+          onTouchStart={(e) => onSponsorMove && handleDragStart(e, sp, containerKey, onSponsorMove)}
+        >
+          <img src={sp.imageUrl} alt="Sponsor" className="w-full h-auto object-contain pointer-events-none" draggable={false} />
+        </div>
+      ));
+  };
+
+  const primaryGrad2 = config.useGradient ? config.gradientColor : undefined;
+  const secondaryGrad2 = config.useGradientSecondary ? config.gradientSecondaryColor : undefined;
+  const primary = useRecoloredPair(config.color, config.secondaryColor, primaryGrad2, secondaryGrad2);
+  const secondary = useRecoloredPair(config.secondaryColor, config.color, secondaryGrad2, primaryGrad2);
 
   const placeholder = (
     <div className="w-full aspect-[3/4] bg-gray-100 animate-pulse rounded" />
@@ -388,7 +465,7 @@ export default function JerseyPreview({ config, className, onTextMove }: JerseyP
   ) => (
     <>
       {/* Front */}
-      <div className="relative flex flex-col items-center" ref={(node) => { containerRefs.current[`front-${color}`] = node; }}>
+      <div className="relative flex flex-col items-center overflow-visible" ref={(node) => { containerRefs.current[`front-${color}`] = node; }}>
         {pair.frontUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={pair.frontUrl} alt={labelFront} className="w-full h-auto" draggable={false} style={imgStyle} />
@@ -403,34 +480,15 @@ export default function JerseyPreview({ config, className, onTextMove }: JerseyP
             draggable={false}
           />
         )}
-        {config.showFrontNumber && config.number && (
-          <div
-            className="absolute text-center leading-none pointer-events-none"
-            style={{
-              left: config.frontNumberPosition === "left" ? "28%" : config.frontNumberPosition === "center" ? "46%" : "64%",
-              top: "26%",
-              width: "22%",
-              height: "22%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "clamp(1.6rem, 5vw, 2.5rem)",
-              color: textColor,
-              fontFamily: "'Impact', 'Arial Black', sans-serif",
-              transform: "scaleY(1.15)",
-            }}
-          >
-            {config.number}
-          </div>
-        )}
         {renderTextElements("front", `front-${color}`, textColor)}
+        {renderSponsorElements("front", `front-${color}`)}
         <span className="mt-1 text-[10px] font-bold tracking-[0.15em] uppercase text-black/40">
           {labelFront}
         </span>
       </div>
 
       {/* Back */}
-      <div className="relative flex flex-col items-center" ref={(node) => { containerRefs.current[`back-${color}`] = node; }}>
+      <div className="relative flex flex-col items-center overflow-visible" ref={(node) => { containerRefs.current[`back-${color}`] = node; }}>
         {pair.backUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={pair.backUrl} alt={labelBack} className="w-full h-auto" draggable={false} style={imgStyle} />
@@ -450,6 +508,7 @@ export default function JerseyPreview({ config, className, onTextMove }: JerseyP
           </div>
         )}
         {renderTextElements("back", `back-${color}`, textColor)}
+        {renderSponsorElements("back", `back-${color}`)}
         <span className="mt-1 text-[10px] font-bold tracking-[0.15em] uppercase text-black/40">
           {labelBack}
         </span>
@@ -459,7 +518,7 @@ export default function JerseyPreview({ config, className, onTextMove }: JerseyP
 
   return (
     <div className={`select-none ${className ?? ""}`}>
-      <div className="grid grid-cols-2 gap-x-5 gap-y-6">
+      <div className="grid grid-cols-2 gap-x-5 gap-y-6 overflow-visible">
         {renderRow(primary, config.color, "Frente", "Espalda", config.letterColor)}
         {renderRow(secondary, config.secondaryColor, "Frente (Dorso)", "Espalda (Dorso)", config.letterColorBack)}
       </div>
