@@ -724,99 +724,11 @@ export default function JerseyCustomizer() {
 
             <Separator className="bg-black/8" />
 
-            {/* Step 6 — Sponsors */}
-            <div>
-              <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase mb-3">
-                02 — Sponsors
-              </h2>
-              <div className="flex flex-col gap-3">
-                {config.sponsors.map((sp) => (
-                  <div key={sp.id} className="flex flex-col gap-2 bg-[#f7f7f7] border border-black/8 p-4 sm:p-3">
-                    <input
-                      ref={(node) => { sponsorFileRefs.current[sp.id] = node; }}
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleSponsorUpload(sp.id, file);
-                      }}
-                      className="hidden"
-                    />
-                    {!sp.imageUrl ? (
-                      <label
-                        onClick={() => sponsorFileRefs.current[sp.id]?.click()}
-                        className="flex items-center justify-center gap-2 border border-dashed border-black/20 p-3 cursor-pointer hover:border-black/50 hover:bg-black/[0.015] transition-all"
-                      >
-                        {sponsorProcessingId === sp.id ? (
-                          <>
-                            <Loader2 className="w-5 h-5 text-black/40 animate-spin" />
-                            <p className="text-[11px] text-black/45 font-medium">Procesando...</p>
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="w-5 h-5 text-black/25" />
-                            <p className="text-xs font-semibold text-black/60 tracking-wide">Subir imagen de sponsor</p>
-                          </>
-                        )}
-                      </label>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-white border border-black/8 flex items-center justify-center flex-shrink-0">
-                            <img src={sp.imageUrl} alt="Sponsor" className="w-8 h-8 object-contain" />
-                          </div>
-                          <p className="text-xs font-semibold truncate text-black/70 flex-1">{sp.fileName}</p>
-                          <button
-                            onClick={() => sponsorFileRefs.current[sp.id]?.click()}
-                            className="text-[10px] text-black/40 hover:text-black/70 underline flex-shrink-0"
-                          >
-                            Cambiar
-                          </button>
-                          <button
-                            onClick={() => handleRemoveSponsor(sp.id)}
-                            className="text-black/25 hover:text-red-500 transition-colors p-1 flex-shrink-0"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[10px] text-black/40 whitespace-nowrap">Tamaño</span>
-                          <input
-                            type="range"
-                            min="0.3"
-                            max="3"
-                            step="0.1"
-                            value={sp.size}
-                            onChange={(e) => handleUpdateSponsor(sp.id, { size: parseFloat(e.target.value) })}
-                            className="flex-1 h-1 accent-black cursor-pointer"
-                          />
-                          <span className="text-[10px] text-black/40 w-8 text-right">{sp.size.toFixed(1)}x</span>
-                        </div>
-                        <p className="text-[10px] text-black/30 flex items-center gap-1">
-                          <GripVertical className="w-3 h-3" />
-                          Arrastrá el sponsor en la previsualización para posicionarlo
-                        </p>
-                      </>
-                    )}
-                  </div>
-                ))}
-                <button
-                  onClick={handleAddSponsor}
-                  className="flex items-center justify-center gap-2 border border-dashed border-black/20 p-3 text-[11px] font-semibold tracking-widest uppercase text-black/50 hover:border-black/40 hover:text-black/70 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Agregar sponsor
-                </button>
-              </div>
-            </div>
-
-            <Separator className="bg-black/8" />
-
             {/* Step 2 — Color */}
             <div>
               <div className="flex items-baseline justify-between mb-3">
                 <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase">
-                  03 — Color de la remera
+                  02 — Color de la remera
                 </h2>
                 <span className="text-[11px] text-black/45 font-medium uppercase">
                   {config.color}
@@ -882,7 +794,7 @@ export default function JerseyCustomizer() {
             <div>
               <div className="flex items-baseline justify-between mb-3">
                 <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase">
-                  04 — Color del dorso
+                  03 — Color del dorso
                 </h2>
                 <span className="text-[11px] text-black/45 font-medium uppercase">
                   {config.secondaryColor}
@@ -947,7 +859,7 @@ export default function JerseyCustomizer() {
             {/* Step 4 — Number & Name */}
             <div>
               <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase mb-4">
-                05 — Número y nombre
+                04 — Número y nombre
               </h2>
               <div className="flex flex-col gap-4">
                 {/* Number with toggle */}
@@ -1085,7 +997,7 @@ export default function JerseyCustomizer() {
             <div>
               <div className="flex items-baseline justify-between mb-3">
                 <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase">
-                  06 — Color de letras
+                  05 — Color de letras
                 </h2>
               </div>
               
@@ -1123,6 +1035,94 @@ export default function JerseyCustomizer() {
                     <div className="w-full h-full pointer-events-none" style={{ backgroundColor: config.letterColorBack }} />
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <Separator className="bg-black/8" />
+
+            {/* Step 6 — Sponsors */}
+            <div>
+              <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase mb-3">
+                06 — Sponsors
+              </h2>
+              <div className="flex flex-col gap-3">
+                {config.sponsors.map((sp) => (
+                  <div key={sp.id} className="flex flex-col gap-2 bg-[#f7f7f7] border border-black/8 p-4 sm:p-3">
+                    <input
+                      ref={(node) => { sponsorFileRefs.current[sp.id] = node; }}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleSponsorUpload(sp.id, file);
+                      }}
+                      className="hidden"
+                    />
+                    {!sp.imageUrl ? (
+                      <label
+                        onClick={() => sponsorFileRefs.current[sp.id]?.click()}
+                        className="flex items-center justify-center gap-2 border border-dashed border-black/20 p-3 cursor-pointer hover:border-black/50 hover:bg-black/[0.015] transition-all"
+                      >
+                        {sponsorProcessingId === sp.id ? (
+                          <>
+                            <Loader2 className="w-5 h-5 text-black/40 animate-spin" />
+                            <p className="text-[11px] text-black/45 font-medium">Procesando...</p>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-5 h-5 text-black/25" />
+                            <p className="text-xs font-semibold text-black/60 tracking-wide">Subir imagen de sponsor</p>
+                          </>
+                        )}
+                      </label>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white border border-black/8 flex items-center justify-center flex-shrink-0">
+                            <img src={sp.imageUrl} alt="Sponsor" className="w-8 h-8 object-contain" />
+                          </div>
+                          <p className="text-xs font-semibold truncate text-black/70 flex-1">{sp.fileName}</p>
+                          <button
+                            onClick={() => sponsorFileRefs.current[sp.id]?.click()}
+                            className="text-[10px] text-black/40 hover:text-black/70 underline flex-shrink-0"
+                          >
+                            Cambiar
+                          </button>
+                          <button
+                            onClick={() => handleRemoveSponsor(sp.id)}
+                            className="text-black/25 hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] text-black/40 whitespace-nowrap">Tamaño</span>
+                          <input
+                            type="range"
+                            min="0.3"
+                            max="3"
+                            step="0.1"
+                            value={sp.size}
+                            onChange={(e) => handleUpdateSponsor(sp.id, { size: parseFloat(e.target.value) })}
+                            className="flex-1 h-1 accent-black cursor-pointer"
+                          />
+                          <span className="text-[10px] text-black/40 w-8 text-right">{sp.size.toFixed(1)}x</span>
+                        </div>
+                        <p className="text-[10px] text-black/30 flex items-center gap-1">
+                          <GripVertical className="w-3 h-3" />
+                          Arrastrá el sponsor en la previsualización para posicionarlo
+                        </p>
+                      </>
+                    )}
+                  </div>
+                ))}
+                <button
+                  onClick={handleAddSponsor}
+                  className="flex items-center justify-center gap-2 border border-dashed border-black/20 p-3 text-[11px] font-semibold tracking-widest uppercase text-black/50 hover:border-black/40 hover:text-black/70 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Agregar sponsor
+                </button>
               </div>
             </div>
 
