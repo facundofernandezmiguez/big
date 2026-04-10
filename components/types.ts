@@ -1,4 +1,4 @@
-export type FontOption = "arial-black" | "impact" | "bebas" | "roboto" | "montserrat" | "oswald" | "teko" | "anton";
+export type FontOption = "bebas" | "franklin" | "baskerville" | "open-sans";
 
 export interface TextElement {
   id: string;

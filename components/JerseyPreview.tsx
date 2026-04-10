@@ -11,14 +11,10 @@ interface JerseyPreviewProps {
 }
 
 const FONT_FAMILY_MAP: Record<FontOption, string> = {
-  "arial-black": "'Arial Black', sans-serif",
-  "impact": "'Impact', 'Arial Black', sans-serif",
   "bebas": "'Bebas Neue', 'Arial Black', sans-serif",
-  "roboto": "'Roboto Condensed', 'Arial', sans-serif",
-  "montserrat": "'Montserrat', 'Arial Black', sans-serif",
-  "oswald": "'Oswald', 'Arial Black', sans-serif",
-  "teko": "'Teko', 'Arial Black', sans-serif",
-  "anton": "'Anton', 'Arial Black', sans-serif",
+  "franklin": "'Libre Franklin', 'Arial', sans-serif",
+  "baskerville": "'Libre Baskerville', 'Georgia', serif",
+  "open-sans": "'Open Sans', 'Arial', sans-serif",
 };
 
 // ─── Helpers ───

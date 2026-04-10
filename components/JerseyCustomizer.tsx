@@ -27,7 +27,7 @@ export default function JerseyCustomizer() {
     number: "10",
     showNumber: true,
     textElements: [
-      { id: "1", text: "MI EQUIPO", font: "arial-black", size: 1, x: 50, y: 77, target: "back" },
+      { id: "1", text: "MI EQUIPO", font: "bebas", size: 1, x: 50, y: 77, target: "back" },
     ],
     sponsors: [],
   });
@@ -38,7 +38,7 @@ export default function JerseyCustomizer() {
     const newEl: TextElement = {
       id: String(nextTextId.current++),
       text: "",
-      font: "arial-black",
+      font: "bebas",
       size: 1,
       x: 50,
       y: 50,
@@ -331,19 +331,15 @@ export default function JerseyCustomizer() {
 
       // Text elements
       const fontMap: Record<FontOption, string> = {
-        "arial-black": "'Arial Black', Arial, sans-serif",
-        "impact": "'Impact', 'Arial Black', sans-serif",
         "bebas": "'Bebas Neue', 'Arial Black', sans-serif",
-        "roboto": "'Roboto Condensed', 'Arial', sans-serif",
-        "montserrat": "'Montserrat', 'Arial Black', sans-serif",
-        "oswald": "'Oswald', 'Arial Black', sans-serif",
-        "teko": "'Teko', 'Arial Black', sans-serif",
-        "anton": "'Anton', 'Arial Black', sans-serif",
+        "franklin": "'Libre Franklin', 'Arial', sans-serif",
+        "baskerville": "'Libre Baskerville', 'Georgia', serif",
+        "open-sans": "'Open Sans', 'Arial', sans-serif",
       };
       const drawTextElements = (cell: { x: number; y: number }, target: "front" | "back", tc: string) => {
         for (const el of config.textElements) {
           if (el.target !== target || !el.text) continue;
-          const elFont = fontMap[el.font] || fontMap["arial-black"];
+          const elFont = fontMap[el.font] || fontMap["bebas"];
           ctx.font = `900 ${Math.round(CH * 0.05 * el.size)}px ${elFont}`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
@@ -495,19 +491,15 @@ export default function JerseyCustomizer() {
 
       // Text elements
       const fontMap2: Record<FontOption, string> = {
-        "arial-black": "'Arial Black', Arial, sans-serif",
-        "impact": "'Impact', 'Arial Black', sans-serif",
         "bebas": "'Bebas Neue', 'Arial Black', sans-serif",
-        "roboto": "'Roboto Condensed', 'Arial', sans-serif",
-        "montserrat": "'Montserrat', 'Arial Black', sans-serif",
-        "oswald": "'Oswald', 'Arial Black', sans-serif",
-        "teko": "'Teko', 'Arial Black', sans-serif",
-        "anton": "'Anton', 'Arial Black', sans-serif",
+        "franklin": "'Libre Franklin', 'Arial', sans-serif",
+        "baskerville": "'Libre Baskerville', 'Georgia', serif",
+        "open-sans": "'Open Sans', 'Arial', sans-serif",
       };
       const drawTextElements2 = (cell: { x: number; y: number }, target: "front" | "back", tc: string) => {
         for (const el of config.textElements) {
           if (el.target !== target || !el.text) continue;
-          const elFont = fontMap2[el.font] || fontMap2["arial-black"];
+          const elFont = fontMap2[el.font] || fontMap2["bebas"];
           ctx.font = `900 ${Math.round(CH * 0.05 * el.size)}px ${elFont}`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
@@ -931,25 +923,17 @@ export default function JerseyCustomizer() {
                             className="w-full appearance-none rounded-none border border-black/20 bg-white px-3 py-1.5 text-[11px] outline-none focus-visible:border-black"
                             style={{
                               fontFamily: [
-                                { value: "arial-black", style: "'Arial Black', Arial, sans-serif" },
-                                { value: "impact", style: "'Impact', 'Arial Black', sans-serif" },
                                 { value: "bebas", style: "'Bebas Neue', sans-serif" },
-                                { value: "roboto", style: "'Roboto Condensed', sans-serif" },
-                                { value: "montserrat", style: "'Montserrat', sans-serif" },
-                                { value: "oswald", style: "'Oswald', sans-serif" },
-                                { value: "teko", style: "'Teko', sans-serif" },
-                                { value: "anton", style: "'Anton', sans-serif" },
+                                { value: "franklin", style: "'Libre Franklin', sans-serif" },
+                                { value: "baskerville", style: "'Libre Baskerville', serif" },
+                                { value: "open-sans", style: "'Open Sans', sans-serif" },
                               ].find(f => f.value === el.font)?.style
                             }}
                           >
-                            <option value="arial-black">Arial Black</option>
-                            <option value="impact">Impact</option>
-                            <option value="bebas">Bebas Neue</option>
-                            <option value="roboto">Roboto Condensed</option>
-                            <option value="montserrat">Montserrat</option>
-                            <option value="oswald">Oswald</option>
-                            <option value="teko">Teko</option>
-                            <option value="anton">Anton</option>
+                            <option value="bebas" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>Bebas Neue</option>
+                            <option value="franklin" style={{ fontFamily: "'Libre Franklin', sans-serif" }}>ITC Franklin Gothic</option>
+                            <option value="baskerville" style={{ fontFamily: "'Libre Baskerville', serif" }}>Libre Baskerville</option>
+                            <option value="open-sans" style={{ fontFamily: "'Open Sans', sans-serif" }}>Open Sans</option>
                           </select>
                           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-black/50">
                             <svg className="h-3 w-3 fill-current" viewBox="0 0 20 20">
