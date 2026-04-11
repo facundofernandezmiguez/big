@@ -102,9 +102,6 @@ export default function JerseyCustomizer() {
     }));
   };
 
-  const [pinchScale, setPinchScale] = useState(1);
-  const pinchRef = useRef<{ startDist: number; startScale: number } | null>(null);
-
   const [shieldFileName, setShieldFileName] = useState<string | null>(null);
   const [isRemovingBg, setIsRemovingBg] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
@@ -165,51 +162,98 @@ export default function JerseyCustomizer() {
     []
   );
 
-  // Pinch-to-zoom on preview (mobile)
+  // ─── Mobile gestures: pan+zoom preview & pinch-resize selected object ───
+  const [viewScale, setViewScale] = useState(1);
+  const [viewX, setViewX] = useState(0);
+  const [viewY, setViewY] = useState(0);
+  const [selectedObject, setSelectedObject] = useState<{ id: string; type: "text" | "sponsor" | "shield" } | null>(null);
+  const gestureRef = useRef<{ startDist: number; startScale: number; startMidX: number; startMidY: number; startViewX: number; startViewY: number; mode: "view" | "resize" } | null>(null);
+
+  const handleObjectSelect = useCallback((id: string, type: "text" | "sponsor" | "shield") => {
+    setSelectedObject((prev) => (prev?.id === id && prev?.type === type ? null : { id, type }));
+  }, []);
+
+  const handleObjectDeselect = useCallback(() => {
+    setSelectedObject(null);
+  }, []);
+
+  const handleResetView = useCallback(() => {
+    setViewScale(1);
+    setViewX(0);
+    setViewY(0);
+  }, []);
+
   useEffect(() => {
     const el = previewRef.current;
     if (!el) return;
 
-    const getDistance = (t: TouchList) => {
-      const dx = t[0].clientX - t[1].clientX;
-      const dy = t[0].clientY - t[1].clientY;
-      return Math.hypot(dx, dy);
-    };
+    const getDist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const getMid = (t: TouchList) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
 
     const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        pinchRef.current = {
-          startDist: getDistance(e.touches),
-          startScale: pinchScale,
-        };
+      if (e.touches.length !== 2) return;
+      e.preventDefault();
+      const dist = getDist(e.touches);
+      const mid = getMid(e.touches);
+      // If an object is selected, pinch resizes it; otherwise pan+zoom the preview
+      const sel = selectedObject;
+      let startScale: number;
+      if (sel) {
+        if (sel.type === "shield") startScale = config.shieldSize;
+        else if (sel.type === "text") startScale = config.textElements.find((t) => t.id === sel.id)?.size ?? 1;
+        else startScale = config.sponsors.find((s) => s.id === sel.id)?.size ?? 1;
+        gestureRef.current = { startDist: dist, startScale, startMidX: mid.x, startMidY: mid.y, startViewX: viewX, startViewY: viewY, mode: "resize" };
+      } else {
+        gestureRef.current = { startDist: dist, startScale: viewScale, startMidX: mid.x, startMidY: mid.y, startViewX: viewX, startViewY: viewY, mode: "view" };
       }
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2 && pinchRef.current) {
-        e.preventDefault();
-        const dist = getDistance(e.touches);
-        const ratio = dist / pinchRef.current.startDist;
-        const newScale = Math.min(3, Math.max(0.5, pinchRef.current.startScale * ratio));
-        setPinchScale(newScale);
+      if (e.touches.length !== 2 || !gestureRef.current) return;
+      e.preventDefault();
+      const dist = getDist(e.touches);
+      const mid = getMid(e.touches);
+      const g = gestureRef.current;
+      const ratio = dist / g.startDist;
+
+      if (g.mode === "resize") {
+        const newSize = Math.min(5, Math.max(0.3, g.startScale * ratio));
+        const sel = selectedObject;
+        if (!sel) return;
+        if (sel.type === "shield") {
+          setConfig((prev) => ({ ...prev, shieldSize: newSize }));
+        } else if (sel.type === "text") {
+          setConfig((prev) => ({
+            ...prev,
+            textElements: prev.textElements.map((t) => t.id === sel.id ? { ...t, size: newSize } : t),
+          }));
+        } else {
+          setConfig((prev) => ({
+            ...prev,
+            sponsors: prev.sponsors.map((s) => s.id === sel.id ? { ...s, size: newSize } : s),
+          }));
+        }
+      } else {
+        const newScale = Math.min(4, Math.max(0.5, g.startScale * ratio));
+        const panX = mid.x - g.startMidX;
+        const panY = mid.y - g.startMidY;
+        setViewScale(newScale);
+        setViewX(g.startViewX + panX);
+        setViewY(g.startViewY + panY);
       }
     };
 
-    const onTouchEnd = () => {
-      pinchRef.current = null;
-    };
+    const onTouchEnd = () => { gestureRef.current = null; };
 
     el.addEventListener("touchstart", onTouchStart, { passive: false });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd);
-
     return () => {
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
     };
-  }, [pinchScale]);
+  }, [selectedObject, viewScale, viewX, viewY, config.shieldSize, config.textElements, config.sponsors]);
 
   const handleRemoveShield = () => {
     setConfig((prev) => ({ ...prev, shieldUrl: null }));
@@ -632,20 +676,45 @@ export default function JerseyCustomizer() {
           <div className="flex flex-col items-center gap-4 sm:gap-5 lg:sticky lg:top-4 lg:z-10 w-full bg-white pb-4 lg:pb-0">
             <div
               ref={previewRef}
-              className="w-full bg-[#f7f7f7] border border-black/8 flex items-center justify-center p-4 sm:p-8 min-h-[220px] sm:min-h-[500px] overflow-hidden"
-              style={{ touchAction: "pan-x pan-y" }}
+              className="relative w-full bg-[#f7f7f7] border border-black/8 flex items-center justify-center p-4 sm:p-8 min-h-[220px] sm:min-h-[500px] overflow-hidden"
+              style={{ touchAction: "none" }}
+              onClick={handleObjectDeselect}
             >
               <div
-                style={{ transform: `scale(${pinchScale})`, transformOrigin: "center", transition: pinchRef.current ? "none" : "transform 0.2s ease-out" }}
+                style={{
+                  transform: `translate(${viewX}px, ${viewY}px) scale(${viewScale})`,
+                  transformOrigin: "center",
+                  transition: gestureRef.current ? "none" : "transform 0.15s ease-out",
+                }}
               >
                 <JerseyPreview
                   config={config}
                   className="w-full max-w-[520px]"
                   onTextMove={handleTextMove}
                   onSponsorMove={handleSponsorMove}
+                  selectedObjectId={selectedObject?.id ?? null}
+                  selectedObjectType={selectedObject?.type ?? null}
+                  onObjectSelect={handleObjectSelect}
                 />
               </div>
             </div>
+            {(viewScale !== 1 || viewX !== 0 || viewY !== 0) && (
+              <button
+                onClick={handleResetView}
+                className="text-[11px] font-semibold text-black/50 hover:text-black/80 underline transition-colors"
+              >
+                Restablecer zoom
+              </button>
+            )}
+            {selectedObject && (
+              <div className="flex items-center gap-2 text-[11px] text-black/60 bg-black/5 border border-black/10 px-3 py-1.5 rounded-full">
+                <span className="font-semibold">
+                  {selectedObject.type === "shield" ? "Escudo" : selectedObject.type === "text" ? "Texto" : "Sponsor"} seleccionado
+                </span>
+                <span className="text-black/40">&mdash; Pinch para redimensionar</span>
+                <button onClick={handleObjectDeselect} className="ml-1 text-black/40 hover:text-black/70 font-bold">&times;</button>
+              </div>
+            )}
           </div>
 
           {/* Controls */}

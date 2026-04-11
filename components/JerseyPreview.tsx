@@ -8,6 +8,9 @@ interface JerseyPreviewProps {
   className?: string;
   onTextMove?: (id: string, x: number, y: number, target?: "front" | "back") => void;
   onSponsorMove?: (id: string, x: number, y: number, target?: "front" | "back") => void;
+  selectedObjectId?: string | null;
+  selectedObjectType?: "text" | "sponsor" | "shield" | null;
+  onObjectSelect?: (id: string, type: "text" | "sponsor" | "shield") => void;
 }
 
 const FONT_FAMILY_MAP: Record<FontOption, string> = {
@@ -379,7 +382,7 @@ function useRecoloredPair(color: string, dorsoColor: string, gradientColor2?: st
 }
 
 // ─── Component ───
-export default function JerseyPreview({ config, className, onTextMove, onSponsorMove }: JerseyPreviewProps) {
+export default function JerseyPreview({ config, className, onTextMove, onSponsorMove, selectedObjectId, selectedObjectType, onObjectSelect }: JerseyPreviewProps) {
   const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number; containerRect: DOMRect; origTarget: "front" | "back"; moveCb: (id: string, x: number, y: number, target?: "front" | "back") => void } | null>(null);
   const containerRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -448,48 +451,68 @@ export default function JerseyPreview({ config, className, onTextMove, onSponsor
   const renderTextElements = (target: "front" | "back", containerKey: string, textColor: string) => {
     return config.textElements
       .filter((el) => el.target === target)
-      .map((el) => (
-        <div
-          key={el.id}
-          className="absolute text-center font-black tracking-wider cursor-grab active:cursor-grabbing select-none"
-          style={{
-            left: `${el.x}%`,
-            top: `${el.y}%`,
-            transform: "translate(-50%, -50%)",
-            fontSize: `calc(clamp(0.5rem, 2.2vw, 1.2rem) * ${el.size})`,
-            color: textColor,
-            fontFamily: FONT_FAMILY_MAP[el.font],
-            whiteSpace: "nowrap",
-            zIndex: 10,
-          }}
-          onMouseDown={(e) => onTextMove && handleDragStart(e, el, containerKey, onTextMove)}
-          onTouchStart={(e) => onTextMove && handleDragStart(e, el, containerKey, onTextMove)}
-        >
-          {el.text}
-        </div>
-      ));
+      .map((el) => {
+        const isSelected = selectedObjectId === el.id && selectedObjectType === "text";
+        return (
+          <div
+            key={el.id}
+            className="absolute text-center font-black tracking-wider cursor-grab active:cursor-grabbing select-none"
+            style={{
+              left: `${el.x}%`,
+              top: `${el.y}%`,
+              transform: "translate(-50%, -50%)",
+              fontSize: `calc(clamp(0.5rem, 2.2vw, 1.2rem) * ${el.size})`,
+              color: textColor,
+              fontFamily: FONT_FAMILY_MAP[el.font],
+              whiteSpace: "nowrap",
+              zIndex: 10,
+              outline: isSelected ? "2px dashed rgba(59,130,246,0.8)" : "none",
+              outlineOffset: "4px",
+              borderRadius: "2px",
+            }}
+            onMouseDown={(e) => onTextMove && handleDragStart(e, el, containerKey, onTextMove)}
+            onTouchStart={(e) => {
+              if (onObjectSelect) { e.stopPropagation(); onObjectSelect(el.id, "text"); }
+              if (onTextMove) handleDragStart(e, el, containerKey, onTextMove);
+            }}
+            onClick={(e) => { e.stopPropagation(); if (onObjectSelect) onObjectSelect(el.id, "text"); }}
+          >
+            {el.text}
+          </div>
+        );
+      });
   };
 
   const renderSponsorElements = (target: "front" | "back", containerKey: string) => {
     return config.sponsors
       .filter((sp) => sp.target === target && sp.imageUrl)
-      .map((sp) => (
-        <div
-          key={sp.id}
-          className="absolute cursor-grab active:cursor-grabbing select-none"
-          style={{
-            left: `${sp.x}%`,
-            top: `${sp.y}%`,
-            transform: "translate(-50%, -50%)",
-            width: `${15 * sp.size}%`,
-            zIndex: 10,
-          }}
-          onMouseDown={(e) => onSponsorMove && handleDragStart(e, sp, containerKey, onSponsorMove)}
-          onTouchStart={(e) => onSponsorMove && handleDragStart(e, sp, containerKey, onSponsorMove)}
-        >
-          <img src={sp.imageUrl} alt="Sponsor" className="w-full h-auto object-contain pointer-events-none" draggable={false} />
-        </div>
-      ));
+      .map((sp) => {
+        const isSelected = selectedObjectId === sp.id && selectedObjectType === "sponsor";
+        return (
+          <div
+            key={sp.id}
+            className="absolute cursor-grab active:cursor-grabbing select-none"
+            style={{
+              left: `${sp.x}%`,
+              top: `${sp.y}%`,
+              transform: "translate(-50%, -50%)",
+              width: `${15 * sp.size}%`,
+              zIndex: 10,
+              outline: isSelected ? "2px dashed rgba(59,130,246,0.8)" : "none",
+              outlineOffset: "4px",
+              borderRadius: "2px",
+            }}
+            onMouseDown={(e) => onSponsorMove && handleDragStart(e, sp, containerKey, onSponsorMove)}
+            onTouchStart={(e) => {
+              if (onObjectSelect) { e.stopPropagation(); onObjectSelect(sp.id, "sponsor"); }
+              if (onSponsorMove) handleDragStart(e, sp, containerKey, onSponsorMove);
+            }}
+            onClick={(e) => { e.stopPropagation(); if (onObjectSelect) onObjectSelect(sp.id, "sponsor"); }}
+          >
+            <img src={sp.imageUrl} alt="Sponsor" className="w-full h-auto object-contain pointer-events-none" draggable={false} />
+          </div>
+        );
+      });
   };
 
   const primaryGrad2 = config.useGradient ? config.gradientColor : undefined;
@@ -518,14 +541,31 @@ export default function JerseyPreview({ config, className, onTextMove, onSponsor
           <img src={pair.frontUrl} alt={labelFront} className="w-full h-auto" draggable={false} style={imgStyle} />
         ) : placeholder}
         {config.shieldUrl && config.showShield && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={config.shieldUrl}
-            alt="Escudo"
-            className="absolute object-contain pointer-events-none"
-            style={{ left: config.shieldPosition === "left" ? "22%" : config.shieldPosition === "center" ? "40%" : "58%", top: "26%", width: "22%", height: "22%", transform: `scale(${config.shieldSize})`, transformOrigin: "center" }}
-            draggable={false}
-          />
+          <div
+            className="absolute cursor-pointer"
+            style={{
+              left: config.shieldPosition === "left" ? "22%" : config.shieldPosition === "center" ? "40%" : "58%",
+              top: "26%",
+              width: "22%",
+              height: "22%",
+              transform: `scale(${config.shieldSize})`,
+              transformOrigin: "center",
+              zIndex: 10,
+              outline: selectedObjectId === "shield" && selectedObjectType === "shield" ? "2px dashed rgba(59,130,246,0.8)" : "none",
+              outlineOffset: "4px",
+              borderRadius: "2px",
+            }}
+            onClick={(e) => { e.stopPropagation(); if (onObjectSelect) onObjectSelect("shield", "shield"); }}
+            onTouchStart={(e) => { e.stopPropagation(); if (onObjectSelect) onObjectSelect("shield", "shield"); }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={config.shieldUrl}
+              alt="Escudo"
+              className="w-full h-full object-contain pointer-events-none"
+              draggable={false}
+            />
+          </div>
         )}
         {renderTextElements("front", `front-${color}`, textColor)}
         {renderSponsorElements("front", `front-${color}`)}
