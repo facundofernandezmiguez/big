@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,6 +102,9 @@ export default function JerseyCustomizer() {
     }));
   };
 
+  const [pinchScale, setPinchScale] = useState(1);
+  const pinchRef = useRef<{ startDist: number; startScale: number } | null>(null);
+
   const [shieldFileName, setShieldFileName] = useState<string | null>(null);
   const [isRemovingBg, setIsRemovingBg] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
@@ -161,6 +164,52 @@ export default function JerseyCustomizer() {
     },
     []
   );
+
+  // Pinch-to-zoom on preview (mobile)
+  useEffect(() => {
+    const el = previewRef.current;
+    if (!el) return;
+
+    const getDistance = (t: TouchList) => {
+      const dx = t[0].clientX - t[1].clientX;
+      const dy = t[0].clientY - t[1].clientY;
+      return Math.hypot(dx, dy);
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        pinchRef.current = {
+          startDist: getDistance(e.touches),
+          startScale: pinchScale,
+        };
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchRef.current) {
+        e.preventDefault();
+        const dist = getDistance(e.touches);
+        const ratio = dist / pinchRef.current.startDist;
+        const newScale = Math.min(3, Math.max(0.5, pinchRef.current.startScale * ratio));
+        setPinchScale(newScale);
+      }
+    };
+
+    const onTouchEnd = () => {
+      pinchRef.current = null;
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: false });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [pinchScale]);
 
   const handleRemoveShield = () => {
     setConfig((prev) => ({ ...prev, shieldUrl: null }));
@@ -440,10 +489,12 @@ export default function JerseyCustomizer() {
       if (config.shieldUrl && config.showShield) {
         try {
           const shield = await loadImg(config.shieldUrl);
-          const sw2 = Math.round(CW * 0.22 * config.shieldSize), sh2 = Math.round(CH * 0.22 * config.shieldSize);
+          const baseW = CW * 0.22, baseH = CH * 0.22;
+          const sw2 = Math.round(baseW * config.shieldSize), sh2 = Math.round(baseH * config.shieldSize);
           const shieldX = config.shieldPosition === "left" ? CW * 0.22 : config.shieldPosition === "center" ? CW * 0.40 : CW * 0.58;
-          ctx.drawImage(shield, cells[0].x + shieldX, cells[0].y + CH * 0.26, sw2, sh2);
-          ctx.drawImage(shield, cells[2].x + shieldX, cells[2].y + CH * 0.26, sw2, sh2);
+          const scx = shieldX + baseW / 2, scy = CH * 0.26 + baseH / 2;
+          ctx.drawImage(shield, cells[0].x + scx - sw2 / 2, cells[0].y + scy - sh2 / 2, sw2, sh2);
+          ctx.drawImage(shield, cells[2].x + scx - sw2 / 2, cells[2].y + scy - sh2 / 2, sw2, sh2);
         } catch { /* skip */ }
       }
 
@@ -581,14 +632,19 @@ export default function JerseyCustomizer() {
           <div className="flex flex-col items-center gap-4 sm:gap-5 lg:sticky lg:top-4 lg:z-10 w-full bg-white pb-4 lg:pb-0">
             <div
               ref={previewRef}
-              className="w-full bg-[#f7f7f7] border border-black/8 flex items-center justify-center p-4 sm:p-8 min-h-[220px] sm:min-h-[500px]"
+              className="w-full bg-[#f7f7f7] border border-black/8 flex items-center justify-center p-4 sm:p-8 min-h-[220px] sm:min-h-[500px] overflow-hidden"
+              style={{ touchAction: "pan-x pan-y" }}
             >
-              <JerseyPreview
-                config={config}
-                className="w-full max-w-[520px]"
-                onTextMove={handleTextMove}
-                onSponsorMove={handleSponsorMove}
-              />
+              <div
+                style={{ transform: `scale(${pinchScale})`, transformOrigin: "center", transition: pinchRef.current ? "none" : "transform 0.2s ease-out" }}
+              >
+                <JerseyPreview
+                  config={config}
+                  className="w-full max-w-[520px]"
+                  onTextMove={handleTextMove}
+                  onSponsorMove={handleSponsorMove}
+                />
+              </div>
             </div>
           </div>
 
