@@ -32,6 +32,7 @@ export interface JerseyConfig {
   shieldUrl: string | null;
   showShield: boolean;
   shieldPosition: "center" | "left" | "right";
+  shieldSize: number; // scale factor, 1 = default (~22% of jersey width)
   number: string;
   showNumber: boolean;
   textElements: TextElement[];

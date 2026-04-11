@@ -41,31 +41,89 @@ export function resetStaging() {
   _stagingPromise = null;
 }
 
+// ─── Template crop constants (tighter around actual content) ───
+export const FRONT_CROP_SX = 592;
+export const BACK_CROP_SX = 974;
+export const CROP_SW = 420;
+
+// ─── Body fill: the new template is a line drawing (white body + black outlines).
+// The recolor algorithm expects a dark body (brightness < 200).
+// This floods the tank body interiors with black so the algorithm works. ───
+const BODY_SEEDS: Array<[number, number]> = [
+  [801, 387],   // Front body center
+  [1182, 404],  // Back body center
+];
+
+export function fillBodyInteriors(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const d = imageData.data;
+  const total = w * h;
+  const bri = new Float32Array(total);
+  for (let i = 0; i < total; i++) {
+    const p = i * 4;
+    bri[i] = (d[p] + d[p + 1] + d[p + 2]) / 3;
+  }
+
+  for (const [sx, sy] of BODY_SEEDS) {
+    if (sx >= w || sy >= h) continue;
+    const startIdx = sy * w + sx;
+    if (bri[startIdx] < 200) continue;
+
+    const visited = new Uint8Array(total);
+    const queue = [startIdx];
+    visited[startIdx] = 1;
+    let qh = 0;
+
+    while (qh < queue.length) {
+      const idx = queue[qh++];
+      const p = idx * 4;
+      d[p] = 0; d[p + 1] = 0; d[p + 2] = 0; d[p + 3] = 255;
+      bri[idx] = 0;
+
+      const x = idx % w;
+      const y = (idx - x) / w;
+      const nb = [
+        y > 0 ? idx - w : -1,
+        y < h - 1 ? idx + w : -1,
+        x > 0 ? idx - 1 : -1,
+        x < w - 1 ? idx + 1 : -1,
+      ];
+      for (const n of nb) {
+        if (n >= 0 && !visited[n] && bri[n] >= 200) {
+          visited[n] = 1;
+          queue.push(n);
+        }
+      }
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
 function getStaging(): Promise<HTMLCanvasElement> {
   if (_stagingCanvas) return Promise.resolve(_stagingCanvas);
   if (_stagingPromise) return _stagingPromise;
   _stagingPromise = new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
+      // Crop only the top row (both rows are identical in the 2×2 template)
+      const cropH = Math.round(img.naturalHeight * 0.46);
       _imgW = img.naturalWidth;
-      _imgH = img.naturalHeight;
+      _imgH = cropH;
       const c = document.createElement("canvas");
       c.width = _imgW;
       c.height = _imgH;
       const ctx = c.getContext("2d")!;
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(img, 0, 0, _imgW, cropH, 0, 0, _imgW, cropH);
 
-      // Paint over the baked-in shield logo on the front (right chest area)
-      // with black so it recolors to the chosen shirt color, blending in.
-      // The user-uploaded shield is overlaid via HTML absolute positioning.
-      ctx.fillStyle = "#000000";
-      ctx.fillRect(135, 112, 80, 63);
+      // Fill tank body interiors with black for the recolor algorithm
+      fillBodyInteriors(ctx, _imgW, _imgH);
 
       _stagingCanvas = c;
       resolve(c);
     };
     img.onerror = reject;
-    img.src = "/frente.jpg";
+    img.src = "/boceto.png";
   });
   return _stagingPromise;
 }
@@ -169,18 +227,17 @@ export function recolorPixels(
     
     // These become BACKGROUND (transparent)
     const BG_SEEDS_FULL: Array<[number, number]> = [
-      [111, 68],   // Front left armhole
-      [188, 66],   // Front right armhole
-      [361, 76],   // Back left racerback cutout
-      [433, 74],   // Back right racerback cutout
+      [737, 124],   // Front left armhole
+      [860, 121],   // Front right armhole
+      [1122, 135],  // Back inner left (small triangle)
+      [1242, 133],  // Back inner right (small triangle)
     ];
 
     // These become DORSO (colored)
     const DORSO_SEEDS_FULL: Array<[number, number]> = [
-      [150, 63],   // Front neckline V center
-      [196, 154],  // Front neckline bottom pocket
-      [339, 100],  // Back left armhole
-      [451, 99],   // Back right armhole
+      [797, 104],   // Front neckline V center
+      [1091, 199],  // Back left cutout (large oval)
+      [1274, 200],  // Back right cutout (large oval)
     ];
 
     const isExplicitBg = new Uint8Array(total);
@@ -312,14 +369,8 @@ function useRecoloredPair(color: string, dorsoColor: string, gradientColor2?: st
     let cancelled = false;
     getStaging().then((staging) => {
       if (cancelled) return;
-      // Split at 50% so both halves have equal width → same rendered height
-      const halfW = Math.round(_imgW / 2);
-      const frontSw = halfW;
-      const backSw = _imgW - halfW;
-      const outW = Math.max(frontSw, backSw);
-
-      setFrontUrl(recolorPixels(staging, 0, 0, frontSw, _imgH, color, outW, _imgH, dorsoColor, gradientColor2, dorsoGradientColor2));
-      setBackUrl(recolorPixels(staging, halfW, 0, backSw, _imgH, color, outW, _imgH, dorsoColor, gradientColor2, dorsoGradientColor2));
+      setFrontUrl(recolorPixels(staging, FRONT_CROP_SX, 0, CROP_SW, _imgH, color, CROP_SW, _imgH, dorsoColor, gradientColor2, dorsoGradientColor2));
+      setBackUrl(recolorPixels(staging, BACK_CROP_SX, 0, CROP_SW, _imgH, color, CROP_SW, _imgH, dorsoColor, gradientColor2, dorsoGradientColor2));
     });
     return () => { cancelled = true; };
   }, [color, dorsoColor, gradientColor2, dorsoGradientColor2]);
@@ -472,7 +523,7 @@ export default function JerseyPreview({ config, className, onTextMove, onSponsor
             src={config.shieldUrl}
             alt="Escudo"
             className="absolute object-contain pointer-events-none"
-            style={{ left: config.shieldPosition === "left" ? "28%" : config.shieldPosition === "center" ? "46%" : "64%", top: "26%", width: "22%", height: "22%" }}
+            style={{ left: config.shieldPosition === "left" ? "22%" : config.shieldPosition === "center" ? "40%" : "58%", top: "26%", width: "22%", height: "22%", transform: `scale(${config.shieldSize})`, transformOrigin: "center" }}
             draggable={false}
           />
         )}

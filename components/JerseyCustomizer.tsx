@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Upload, Download, Loader2, X, Plus, GripVertical } from "lucide-react";
 import JerseyPreview from "./JerseyPreview";
-import { isLight, recolorPixels } from "./JerseyPreview";
+import { isLight, recolorPixels, fillBodyInteriors, FRONT_CROP_SX, BACK_CROP_SX, CROP_SW } from "./JerseyPreview";
 import { JerseyConfig, TextElement, SponsorElement, FontOption } from "./types";
 import { removeBackground } from "@imgly/background-removal";
 
@@ -24,6 +24,7 @@ export default function JerseyCustomizer() {
     shieldUrl: null,
     showShield: true,
     shieldPosition: "right",
+    shieldSize: 1,
     number: "10",
     showNumber: true,
     textElements: [
@@ -223,28 +224,25 @@ export default function JerseyCustomizer() {
       });
 
     try {
-      const templateImg = await loadImg("/frente.jpg");
+      const templateImg = await loadImg("/boceto.png");
 
-      // Stage full image and erase baked-in elements
+      // Crop only the top row (both rows identical in the 2×2 template)
+      const cropH = Math.round(templateImg.naturalHeight * 0.46);
       const staging = document.createElement("canvas");
       staging.width = templateImg.naturalWidth;
-      staging.height = templateImg.naturalHeight;
+      staging.height = cropH;
       const sCtx = staging.getContext("2d")!;
-      sCtx.drawImage(templateImg, 0, 0);
-      sCtx.fillStyle = "#000000";
-      sCtx.fillRect(135, 112, 80, 63);
+      sCtx.drawImage(templateImg, 0, 0, templateImg.naturalWidth, cropH, 0, 0, templateImg.naturalWidth, cropH);
+      fillBodyInteriors(sCtx, templateImg.naturalWidth, cropH);
 
-      const halfW = Math.round(templateImg.naturalWidth / 2);
-      const backSw = templateImg.naturalWidth - halfW;
-      const outW = Math.max(halfW, backSw);
-      const imgH = templateImg.naturalHeight;
+      const imgH = cropH;
 
       const pGrad = config.useGradient ? config.gradientColor : undefined;
       const sGrad = config.useGradientSecondary ? config.gradientSecondaryColor : undefined;
-      const fpUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.color, outW, imgH, config.secondaryColor, pGrad, sGrad);
-      const bpUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.color, outW, imgH, config.secondaryColor, pGrad, sGrad);
-      const fsUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.secondaryColor, outW, imgH, config.color, sGrad, pGrad);
-      const bsUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.secondaryColor, outW, imgH, config.color, sGrad, pGrad);
+      const fpUrl = recolorPixels(staging, FRONT_CROP_SX, 0, CROP_SW, imgH, config.color, CROP_SW, imgH, config.secondaryColor, pGrad, sGrad);
+      const bpUrl = recolorPixels(staging, BACK_CROP_SX, 0, CROP_SW, imgH, config.color, CROP_SW, imgH, config.secondaryColor, pGrad, sGrad);
+      const fsUrl = recolorPixels(staging, FRONT_CROP_SX, 0, CROP_SW, imgH, config.secondaryColor, CROP_SW, imgH, config.color, sGrad, pGrad);
+      const bsUrl = recolorPixels(staging, BACK_CROP_SX, 0, CROP_SW, imgH, config.secondaryColor, CROP_SW, imgH, config.color, sGrad, pGrad);
 
       const fpImg = await loadImg(fpUrl);
       const bpImg = await loadImg(bpUrl);
@@ -283,12 +281,12 @@ export default function JerseyCustomizer() {
       if (config.shieldUrl && config.showShield) {
         try {
           const shield = await loadImg(config.shieldUrl);
-          // Made shield slightly larger (was 0.18 -> 0.22)
-          const sw2 = Math.round(CW * 0.22), sh2 = Math.round(CH * 0.22);
-          // Fixed positions: left -> 28%, center -> 46%, right -> 64% 
-          const shieldX = config.shieldPosition === "left" ? CW * 0.28 : config.shieldPosition === "center" ? CW * 0.46 : CW * 0.64;
-          ctx.drawImage(shield, cells[0].x + shieldX, cells[0].y + CH * 0.26, sw2, sh2);
-          ctx.drawImage(shield, cells[2].x + shieldX, cells[2].y + CH * 0.26, sw2, sh2);
+          const baseW = CW * 0.22, baseH = CH * 0.22;
+          const sw2 = Math.round(baseW * config.shieldSize), sh2 = Math.round(baseH * config.shieldSize);
+          const shieldX = config.shieldPosition === "left" ? CW * 0.22 : config.shieldPosition === "center" ? CW * 0.40 : CW * 0.58;
+          const scx = shieldX + baseW / 2, scy = CH * 0.26 + baseH / 2;
+          ctx.drawImage(shield, cells[0].x + scx - sw2 / 2, cells[0].y + scy - sh2 / 2, sw2, sh2);
+          ctx.drawImage(shield, cells[2].x + scx - sw2 / 2, cells[2].y + scy - sh2 / 2, sw2, sh2);
         } catch { /* skip */ }
       }
 
@@ -385,28 +383,25 @@ export default function JerseyCustomizer() {
       });
 
     try {
-      const templateImg = await loadImg("/frente.jpg");
+      const templateImg = await loadImg("/boceto.png");
 
-      // Stage full image and erase baked-in elements
+      // Crop only the top row (both rows identical in the 2×2 template)
+      const cropH = Math.round(templateImg.naturalHeight * 0.46);
       const staging = document.createElement("canvas");
       staging.width = templateImg.naturalWidth;
-      staging.height = templateImg.naturalHeight;
+      staging.height = cropH;
       const sCtx = staging.getContext("2d")!;
-      sCtx.drawImage(templateImg, 0, 0);
-      sCtx.fillStyle = "#000000";
-      sCtx.fillRect(135, 112, 80, 63);
+      sCtx.drawImage(templateImg, 0, 0, templateImg.naturalWidth, cropH, 0, 0, templateImg.naturalWidth, cropH);
+      fillBodyInteriors(sCtx, templateImg.naturalWidth, cropH);
 
-      const halfW = Math.round(templateImg.naturalWidth / 2);
-      const backSw = templateImg.naturalWidth - halfW;
-      const outW = Math.max(halfW, backSw);
-      const imgH = templateImg.naturalHeight;
+      const imgH = cropH;
 
       const pGrad2 = config.useGradient ? config.gradientColor : undefined;
       const sGrad2 = config.useGradientSecondary ? config.gradientSecondaryColor : undefined;
-      const fpUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.color, outW, imgH, config.secondaryColor, pGrad2, sGrad2);
-      const bpUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.color, outW, imgH, config.secondaryColor, pGrad2, sGrad2);
-      const fsUrl = recolorPixels(staging, 0, 0, halfW, imgH, config.secondaryColor, outW, imgH, config.color, sGrad2, pGrad2);
-      const bsUrl = recolorPixels(staging, halfW, 0, backSw, imgH, config.secondaryColor, outW, imgH, config.color, sGrad2, pGrad2);
+      const fpUrl = recolorPixels(staging, FRONT_CROP_SX, 0, CROP_SW, imgH, config.color, CROP_SW, imgH, config.secondaryColor, pGrad2, sGrad2);
+      const bpUrl = recolorPixels(staging, BACK_CROP_SX, 0, CROP_SW, imgH, config.color, CROP_SW, imgH, config.secondaryColor, pGrad2, sGrad2);
+      const fsUrl = recolorPixels(staging, FRONT_CROP_SX, 0, CROP_SW, imgH, config.secondaryColor, CROP_SW, imgH, config.color, sGrad2, pGrad2);
+      const bsUrl = recolorPixels(staging, BACK_CROP_SX, 0, CROP_SW, imgH, config.secondaryColor, CROP_SW, imgH, config.color, sGrad2, pGrad2);
 
       const fpImg = await loadImg(fpUrl);
       const bpImg = await loadImg(bpUrl);
@@ -445,8 +440,8 @@ export default function JerseyCustomizer() {
       if (config.shieldUrl && config.showShield) {
         try {
           const shield = await loadImg(config.shieldUrl);
-          const sw2 = Math.round(CW * 0.22), sh2 = Math.round(CH * 0.22);
-          const shieldX = config.shieldPosition === "left" ? CW * 0.28 : config.shieldPosition === "center" ? CW * 0.46 : CW * 0.64;
+          const sw2 = Math.round(CW * 0.22 * config.shieldSize), sh2 = Math.round(CH * 0.22 * config.shieldSize);
+          const shieldX = config.shieldPosition === "left" ? CW * 0.22 : config.shieldPosition === "center" ? CW * 0.40 : CW * 0.58;
           ctx.drawImage(shield, cells[0].x + shieldX, cells[0].y + CH * 0.26, sw2, sh2);
           ctx.drawImage(shield, cells[2].x + shieldX, cells[2].y + CH * 0.26, sw2, sh2);
         } catch { /* skip */ }
@@ -707,6 +702,21 @@ export default function JerseyCustomizer() {
                             {pos.label}
                           </button>
                         ))}
+                      </div>
+
+                      {/* Shield Size */}
+                      <div className="mt-3 sm:mt-2 flex items-center gap-2">
+                        <span className="text-[11px] sm:text-[10px] text-black/50 whitespace-nowrap">Tamaño</span>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="2.5"
+                          step="0.1"
+                          value={config.shieldSize}
+                          onChange={(e) => setConfig((prev) => ({ ...prev, shieldSize: parseFloat(e.target.value) }))}
+                          className="flex-1 h-1 accent-black cursor-pointer"
+                        />
+                        <span className="text-[10px] text-black/40 w-8 text-right">{config.shieldSize.toFixed(1)}x</span>
                       </div>
                     </div>
                   )}
