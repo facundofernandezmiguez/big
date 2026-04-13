@@ -465,7 +465,7 @@ export default function JerseyPreview({ config, className, onTextMove, onSponsor
         return (
           <div
             key={el.id}
-            className="absolute text-center font-black tracking-wider cursor-grab active:cursor-grabbing select-none"
+            className={`absolute text-center tracking-wider cursor-grab active:cursor-grabbing select-none ${el.bold ? "font-black" : "font-normal"}`}
             style={{
               left: `${el.x}%`,
               top: `${el.y}%`,

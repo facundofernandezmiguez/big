@@ -28,7 +28,7 @@ export default function JerseyCustomizer() {
     number: "10",
     showNumber: true,
     textElements: [
-      { id: "1", text: "MI EQUIPO", font: "bebas", size: 1, x: 50, y: 77, target: "back", row: "primary" },
+      { id: "1", text: "MI EQUIPO", font: "bebas", bold: true, size: 1, x: 50, y: 77, target: "back", row: "primary" },
     ],
     sponsors: [],
   });
@@ -40,6 +40,7 @@ export default function JerseyCustomizer() {
       id: String(nextTextId.current++),
       text: "",
       font: "bebas",
+      bold: true,
       size: 1,
       x: 50,
       y: 50,
@@ -433,7 +434,8 @@ export default function JerseyCustomizer() {
         for (const el of config.textElements) {
           if (el.target !== target || el.row !== row || !el.text) continue;
           const elFont = fontMap[el.font] || fontMap["bebas"];
-          ctx.font = `900 ${Math.round(CH * 0.05 * el.size)}px ${elFont}`;
+          const elWeight = el.bold ? "900" : "400";
+          ctx.font = `${elWeight} ${Math.round(CH * 0.05 * el.size)}px ${elFont}`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillStyle = tc;
@@ -592,7 +594,8 @@ export default function JerseyCustomizer() {
         for (const el of config.textElements) {
           if (el.target !== target || el.row !== row || !el.text) continue;
           const elFont = fontMap2[el.font] || fontMap2["bebas"];
-          ctx.font = `900 ${Math.round(CH * 0.05 * el.size)}px ${elFont}`;
+          const elWeight2 = el.bold ? "900" : "400";
+          ctx.font = `${elWeight2} ${Math.round(CH * 0.05 * el.size)}px ${elFont}`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillStyle = tc;
@@ -1052,6 +1055,18 @@ export default function JerseyCustomizer() {
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {/* Bold toggle */}
+                        <button
+                          onClick={() => handleUpdateText(el.id, { bold: !el.bold })}
+                          className={`flex-shrink-0 w-9 h-8 flex items-center justify-center border text-[13px] font-black transition-colors ${
+                            el.bold
+                              ? "bg-black text-white border-black"
+                              : "bg-white text-black/40 border-black/20 hover:border-black/40"
+                          }`}
+                          title="Negrita"
+                        >
+                          B
+                        </button>
                         {/* Font selector */}
                         <div className="relative flex-1">
                           <select

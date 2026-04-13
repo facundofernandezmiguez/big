@@ -4,6 +4,7 @@ export interface TextElement {
   id: string;
   text: string;
   font: FontOption;
+  bold: boolean;
   size: number; // scale factor, 1 = default
   x: number;  // % from left (0-100)
   y: number;  // % from top (0-100)
