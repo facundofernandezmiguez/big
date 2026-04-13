@@ -677,7 +677,7 @@ export default function JerseyCustomizer() {
             <div
               ref={previewRef}
               className="relative w-full bg-[#f7f7f7] border border-black/8 flex items-center justify-center p-4 sm:p-8 min-h-[220px] sm:min-h-[500px] overflow-hidden"
-              style={{ touchAction: "none" }}
+              style={{ touchAction: "pan-x pan-y" }}
               onClick={handleObjectDeselect}
             >
               <div
