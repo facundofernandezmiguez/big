@@ -1,13 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 
-export default function DebugPage() {
-  const [results, setResults] = useState<string[]>([]);
-
-  useEffect(() => {
+function analyzeTemplate(src: string, cropRatio: number): Promise<string[]> {
+  return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      const cropH = Math.round(img.naturalHeight * 0.48);
+      const cropH = Math.round(img.naturalHeight * cropRatio);
       const W = img.naturalWidth;
       const H = cropH;
 
@@ -107,26 +105,42 @@ export default function DebugPage() {
 
       const halfW = Math.round(W / 2);
       const lines: string[] = [];
-      lines.push(`Image: ${W}x${H} | Half split at x=${halfW}`);
+      lines.push(`Image: ${img.naturalWidth}x${img.naturalHeight} | Cropped top ${cropRatio}: ${W}x${H} | Half split at x=${halfW}`);
       lines.push(`Found ${regions.length} enclosed white regions (>100px):`);
 
       for (const r of regions.sort((a, b) => a.centerX - b.centerX)) {
         const side = r.centerX < halfW ? "FRONT" : "BACK";
         const line = `${side} | center=[${r.centerX}, ${r.centerY}] | size=${r.size}px | bounds=[${r.minX},${r.minY}]-[${r.maxX},${r.maxY}]`;
         lines.push(line);
-        console.log(line);
+        console.log(`[${src}] ${line}`);
       }
 
-      setResults(lines);
+      resolve(lines);
     };
-    img.src = "/boceto.png";
+    img.onerror = () => resolve([`ERROR loading ${src}`]);
+    img.src = src;
+  });
+}
+
+export default function DebugPage() {
+  const [bocetoResults, setBocetoResults] = useState<string[]>([]);
+  const [recorteResults, setRecorteResults] = useState<string[]>([]);
+
+  useEffect(() => {
+    analyzeTemplate("/boceto.png", 0.48).then(setBocetoResults);
+    analyzeTemplate("/recortelateral.jpg.jpeg", 0.47).then(setRecorteResults);
   }, []);
 
   return (
     <div style={{ padding: 20, fontFamily: "monospace", fontSize: 13 }}>
       <h2>Debug: Enclosed White Regions Analysis</h2>
-      {results.map((line, i) => (
-        <div key={i}>{line}</div>
+      <h3 style={{ marginTop: 20 }}>BOCETO (Clásica) — /boceto.png</h3>
+      {bocetoResults.map((line, i) => (
+        <div key={`b-${i}`}>{line}</div>
+      ))}
+      <h3 style={{ marginTop: 20 }}>RECORTE LATERAL — /recortelateral.jpg.jpeg</h3>
+      {recorteResults.map((line, i) => (
+        <div key={`r-${i}`}>{line}</div>
       ))}
     </div>
   );

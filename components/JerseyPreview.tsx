@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { JerseyConfig, TextElement, SponsorElement, FontOption } from "./types";
+import { JerseyConfig, TextElement, SponsorElement, FontOption, SketchType } from "./types";
 
 interface JerseyPreviewProps {
   config: JerseyConfig;
@@ -18,6 +18,7 @@ const FONT_FAMILY_MAP: Record<FontOption, string> = {
   "franklin": "'Libre Franklin', 'Arial', sans-serif",
   "baskerville": "'Libre Baskerville', 'Georgia', serif",
   "open-sans": "'Open Sans', 'Arial', sans-serif",
+  "oswald": "'Oswald', 'Arial Black', sans-serif",
 };
 
 // ─── Helpers ───
@@ -32,32 +33,96 @@ export function isLight(hex: string): boolean {
   return (r * 299 + g * 587 + b * 114) / 1000 > 140;
 }
 
-// ─── Staging: load image once, erase baked-in shield, cache canvas ───
-let _stagingCanvas: HTMLCanvasElement | null = null;
-let _stagingPromise: Promise<HTMLCanvasElement> | null = null;
-let _imgW = 0;
-let _imgH = 0;
-
-// Call this to force staging re-build (e.g. after coordinate changes)
-export function resetStaging() {
-  _stagingCanvas = null;
-  _stagingPromise = null;
+// ─── Template configuration ───
+export interface TemplateConfig {
+  imagePath: string;
+  cropTopRatio: number;
+  frontCropSx: number;
+  backCropSx: number;
+  cropSw: number;
+  bodySeeds: Array<[number, number]>;
+  bgSeeds: Array<[number, number]>;
+  dorsoSeeds: Array<[number, number]>;
 }
 
-// ─── Template crop constants (tighter around actual content) ───
-export const FRONT_CROP_SX = 592;
-export const BACK_CROP_SX = 974;
-export const CROP_SW = 420;
+export const TEMPLATE_CONFIGS: Record<SketchType, TemplateConfig> = {
+  "clasica": {
+    imagePath: "/boceto.png",
+    cropTopRatio: 0.46,
+    frontCropSx: 592,
+    backCropSx: 974,
+    cropSw: 420,
+    bodySeeds: [
+      [801, 387],
+      [1182, 404],
+    ],
+    bgSeeds: [
+      [737, 124],
+      [860, 121],
+      [1122, 135],
+      [1242, 133],
+    ],
+    dorsoSeeds: [
+      [797, 104],
+      [1091, 199],
+      [1274, 200],
+    ],
+  },
+  "recorte-lateral": {
+    imagePath: "/recortelateral.jpg.jpeg",
+    cropTopRatio: 0.50,
+    frontCropSx: 270,
+    backCropSx: 809,
+    cropSw: 500,
+    bodySeeds: [
+      [520, 567],
+      [1057, 589],
+    ],
+    bgSeeds: [
+      [429, 213],
+      [605, 210],
+      [970, 226],
+      [1140, 224],
+    ],
+    dorsoSeeds: [
+      [515, 187],
+      [339, 701],
+      [699, 707],
+      [877, 714],
+      [1237, 719],
+      [925, 318],
+      [1185, 319],
+    ],
+  },
+};
 
-// ─── Body fill: the new template is a line drawing (white body + black outlines).
-// The recolor algorithm expects a dark body (brightness < 200).
-// This floods the tank body interiors with black so the algorithm works. ───
-const BODY_SEEDS: Array<[number, number]> = [
-  [801, 387],   // Front body center
-  [1182, 404],  // Back body center
-];
+// ─── Legacy exports for backward compatibility ───
+export const FRONT_CROP_SX = TEMPLATE_CONFIGS["clasica"].frontCropSx;
+export const BACK_CROP_SX = TEMPLATE_CONFIGS["clasica"].backCropSx;
+export const CROP_SW = TEMPLATE_CONFIGS["clasica"].cropSw;
 
-export function fillBodyInteriors(ctx: CanvasRenderingContext2D, w: number, h: number) {
+// ─── Staging: per-template cache ───
+interface StagingEntry {
+  canvas: HTMLCanvasElement;
+  imgW: number;
+  imgH: number;
+}
+const _stagingCache: Record<string, StagingEntry> = {};
+const _stagingPromises: Record<string, Promise<StagingEntry>> = {};
+
+export function resetStaging(sketchType?: SketchType) {
+  if (sketchType) {
+    delete _stagingCache[sketchType];
+    delete _stagingPromises[sketchType];
+  } else {
+    for (const k of Object.keys(_stagingCache)) delete _stagingCache[k];
+    for (const k of Object.keys(_stagingPromises)) delete _stagingPromises[k];
+  }
+}
+
+// ─── Body fill: floods tank body interiors with black so the recolor algorithm works ───
+export function fillBodyInteriors(ctx: CanvasRenderingContext2D, w: number, h: number, bodySeeds?: Array<[number, number]>) {
+  const seeds = bodySeeds ?? TEMPLATE_CONFIGS["clasica"].bodySeeds;
   const imageData = ctx.getImageData(0, 0, w, h);
   const d = imageData.data;
   const total = w * h;
@@ -67,7 +132,7 @@ export function fillBodyInteriors(ctx: CanvasRenderingContext2D, w: number, h: n
     bri[i] = (d[p] + d[p + 1] + d[p + 2]) / 3;
   }
 
-  for (const [sx, sy] of BODY_SEEDS) {
+  for (const [sx, sy] of seeds) {
     if (sx >= w || sy >= h) continue;
     const startIdx = sy * w + sx;
     if (bri[startIdx] < 200) continue;
@@ -103,32 +168,32 @@ export function fillBodyInteriors(ctx: CanvasRenderingContext2D, w: number, h: n
   ctx.putImageData(imageData, 0, 0);
 }
 
-function getStaging(): Promise<HTMLCanvasElement> {
-  if (_stagingCanvas) return Promise.resolve(_stagingCanvas);
-  if (_stagingPromise) return _stagingPromise;
-  _stagingPromise = new Promise((resolve, reject) => {
+function getStaging(sketchType: SketchType = "clasica"): Promise<StagingEntry> {
+  if (_stagingCache[sketchType]) return Promise.resolve(_stagingCache[sketchType]);
+  if (sketchType in _stagingPromises) return _stagingPromises[sketchType];
+  const tmpl = TEMPLATE_CONFIGS[sketchType];
+  _stagingPromises[sketchType] = new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      // Crop only the top row (both rows are identical in the 2×2 template)
-      const cropH = Math.round(img.naturalHeight * 0.46);
-      _imgW = img.naturalWidth;
-      _imgH = cropH;
+      const cropH = Math.round(img.naturalHeight * tmpl.cropTopRatio);
+      const imgW = img.naturalWidth;
+      const imgH = cropH;
       const c = document.createElement("canvas");
-      c.width = _imgW;
-      c.height = _imgH;
+      c.width = imgW;
+      c.height = imgH;
       const ctx = c.getContext("2d")!;
-      ctx.drawImage(img, 0, 0, _imgW, cropH, 0, 0, _imgW, cropH);
+      ctx.drawImage(img, 0, 0, imgW, cropH, 0, 0, imgW, cropH);
 
-      // Fill tank body interiors with black for the recolor algorithm
-      fillBodyInteriors(ctx, _imgW, _imgH);
+      fillBodyInteriors(ctx, imgW, imgH, tmpl.bodySeeds);
 
-      _stagingCanvas = c;
-      resolve(c);
+      const entry: StagingEntry = { canvas: c, imgW, imgH };
+      _stagingCache[sketchType] = entry;
+      resolve(entry);
     };
     img.onerror = reject;
-    img.src = "/boceto.png";
+    img.src = tmpl.imagePath;
   });
-  return _stagingPromise;
+  return _stagingPromises[sketchType];
 }
 
 // ─── Canvas recoloring ───
@@ -139,7 +204,9 @@ export function recolorPixels(
   outW: number, outH: number,
   dorsoColor?: string,
   gradientColor2?: string,
-  dorsoGradientColor2?: string
+  dorsoGradientColor2?: string,
+  bgSeedsParam?: Array<[number, number]>,
+  dorsoSeedsParam?: Array<[number, number]>
 ): string {
   const out = document.createElement("canvas");
   out.width = outW;
@@ -228,20 +295,8 @@ export function recolorPixels(
     // We group them by what they should become: BG vs DORSO.
     // Seed coords are in source-image space; offset by sx to get output coords.
     
-    // These become BACKGROUND (transparent)
-    const BG_SEEDS_FULL: Array<[number, number]> = [
-      [737, 124],   // Front left armhole
-      [860, 121],   // Front right armhole
-      [1122, 135],  // Back inner left (small triangle)
-      [1242, 133],  // Back inner right (small triangle)
-    ];
-
-    // These become DORSO (colored)
-    const DORSO_SEEDS_FULL: Array<[number, number]> = [
-      [797, 104],   // Front neckline V center
-      [1091, 199],  // Back left cutout (large oval)
-      [1274, 200],  // Back right cutout (large oval)
-    ];
+    const BG_SEEDS_FULL = bgSeedsParam ?? TEMPLATE_CONFIGS["clasica"].bgSeeds;
+    const DORSO_SEEDS_FULL = dorsoSeedsParam ?? TEMPLATE_CONFIGS["clasica"].dorsoSeeds;
 
     const isExplicitBg = new Uint8Array(total);
     const isDorso = new Uint8Array(total);
@@ -364,19 +419,20 @@ export function recolorPixels(
 }
 
 // ─── Hook: generates front + back data URLs for a given color ───
-function useRecoloredPair(color: string, dorsoColor: string, gradientColor2?: string, dorsoGradientColor2?: string) {
+function useRecoloredPair(sketchType: SketchType, color: string, dorsoColor: string, gradientColor2?: string, dorsoGradientColor2?: string) {
   const [frontUrl, setFrontUrl] = useState("");
   const [backUrl, setBackUrl] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    getStaging().then((staging) => {
+    const tmpl = TEMPLATE_CONFIGS[sketchType];
+    getStaging(sketchType).then(({ canvas, imgH }) => {
       if (cancelled) return;
-      setFrontUrl(recolorPixels(staging, FRONT_CROP_SX, 0, CROP_SW, _imgH, color, CROP_SW, _imgH, dorsoColor, gradientColor2, dorsoGradientColor2));
-      setBackUrl(recolorPixels(staging, BACK_CROP_SX, 0, CROP_SW, _imgH, color, CROP_SW, _imgH, dorsoColor, gradientColor2, dorsoGradientColor2));
+      setFrontUrl(recolorPixels(canvas, tmpl.frontCropSx, 0, tmpl.cropSw, imgH, color, tmpl.cropSw, imgH, dorsoColor, gradientColor2, dorsoGradientColor2, tmpl.bgSeeds, tmpl.dorsoSeeds));
+      setBackUrl(recolorPixels(canvas, tmpl.backCropSx, 0, tmpl.cropSw, imgH, color, tmpl.cropSw, imgH, dorsoColor, gradientColor2, dorsoGradientColor2, tmpl.bgSeeds, tmpl.dorsoSeeds));
     });
     return () => { cancelled = true; };
-  }, [color, dorsoColor, gradientColor2, dorsoGradientColor2]);
+  }, [sketchType, color, dorsoColor, gradientColor2, dorsoGradientColor2]);
 
   return { frontUrl, backUrl };
 }
@@ -526,8 +582,8 @@ export default function JerseyPreview({ config, className, onTextMove, onSponsor
 
   const primaryGrad2 = config.useGradient ? config.gradientColor : undefined;
   const secondaryGrad2 = config.useGradientSecondary ? config.gradientSecondaryColor : undefined;
-  const primary = useRecoloredPair(config.color, config.secondaryColor, primaryGrad2, secondaryGrad2);
-  const secondary = useRecoloredPair(config.secondaryColor, config.color, secondaryGrad2, primaryGrad2);
+  const primary = useRecoloredPair(config.sketchType, config.color, config.secondaryColor, primaryGrad2, secondaryGrad2);
+  const secondary = useRecoloredPair(config.sketchType, config.secondaryColor, config.color, secondaryGrad2, primaryGrad2);
 
   const placeholder = (
     <div className="w-full aspect-[3/4] bg-gray-100 animate-pulse rounded" />

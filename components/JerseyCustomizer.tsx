@@ -7,12 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Upload, Download, Loader2, X, Plus, GripVertical } from "lucide-react";
 import JerseyPreview from "./JerseyPreview";
-import { isLight, recolorPixels, fillBodyInteriors, FRONT_CROP_SX, BACK_CROP_SX, CROP_SW } from "./JerseyPreview";
-import { JerseyConfig, TextElement, SponsorElement, FontOption } from "./types";
+import { recolorPixels, fillBodyInteriors, TEMPLATE_CONFIGS } from "./JerseyPreview";
+import { JerseyConfig, TextElement, SponsorElement, FontOption, SketchType } from "./types";
 import { removeBackground } from "@imgly/background-removal";
 
 export default function JerseyCustomizer() {
   const [config, setConfig] = useState<JerseyConfig>({
+    sketchType: "clasica",
     color: "#111111",
     secondaryColor: "#f5f5f5",
     useGradient: false,
@@ -320,25 +321,26 @@ export default function JerseyCustomizer() {
       });
 
     try {
-      const templateImg = await loadImg("/boceto.png");
+      const tmpl = TEMPLATE_CONFIGS[config.sketchType];
+      const templateImg = await loadImg(tmpl.imagePath);
 
       // Crop only the top row (both rows identical in the 2×2 template)
-      const cropH = Math.round(templateImg.naturalHeight * 0.46);
+      const cropH = Math.round(templateImg.naturalHeight * tmpl.cropTopRatio);
       const staging = document.createElement("canvas");
       staging.width = templateImg.naturalWidth;
       staging.height = cropH;
       const sCtx = staging.getContext("2d")!;
       sCtx.drawImage(templateImg, 0, 0, templateImg.naturalWidth, cropH, 0, 0, templateImg.naturalWidth, cropH);
-      fillBodyInteriors(sCtx, templateImg.naturalWidth, cropH);
+      fillBodyInteriors(sCtx, templateImg.naturalWidth, cropH, tmpl.bodySeeds);
 
       const imgH = cropH;
 
       const pGrad = config.useGradient ? config.gradientColor : undefined;
       const sGrad = config.useGradientSecondary ? config.gradientSecondaryColor : undefined;
-      const fpUrl = recolorPixels(staging, FRONT_CROP_SX, 0, CROP_SW, imgH, config.color, CROP_SW, imgH, config.secondaryColor, pGrad, sGrad);
-      const bpUrl = recolorPixels(staging, BACK_CROP_SX, 0, CROP_SW, imgH, config.color, CROP_SW, imgH, config.secondaryColor, pGrad, sGrad);
-      const fsUrl = recolorPixels(staging, FRONT_CROP_SX, 0, CROP_SW, imgH, config.secondaryColor, CROP_SW, imgH, config.color, sGrad, pGrad);
-      const bsUrl = recolorPixels(staging, BACK_CROP_SX, 0, CROP_SW, imgH, config.secondaryColor, CROP_SW, imgH, config.color, sGrad, pGrad);
+      const fpUrl = recolorPixels(staging, tmpl.frontCropSx, 0, tmpl.cropSw, imgH, config.color, tmpl.cropSw, imgH, config.secondaryColor, pGrad, sGrad, tmpl.bgSeeds, tmpl.dorsoSeeds);
+      const bpUrl = recolorPixels(staging, tmpl.backCropSx, 0, tmpl.cropSw, imgH, config.color, tmpl.cropSw, imgH, config.secondaryColor, pGrad, sGrad, tmpl.bgSeeds, tmpl.dorsoSeeds);
+      const fsUrl = recolorPixels(staging, tmpl.frontCropSx, 0, tmpl.cropSw, imgH, config.secondaryColor, tmpl.cropSw, imgH, config.color, sGrad, pGrad, tmpl.bgSeeds, tmpl.dorsoSeeds);
+      const bsUrl = recolorPixels(staging, tmpl.backCropSx, 0, tmpl.cropSw, imgH, config.secondaryColor, tmpl.cropSw, imgH, config.color, sGrad, pGrad, tmpl.bgSeeds, tmpl.dorsoSeeds);
 
       const fpImg = await loadImg(fpUrl);
       const bpImg = await loadImg(bpUrl);
@@ -429,6 +431,7 @@ export default function JerseyCustomizer() {
         "franklin": "'Libre Franklin', 'Arial', sans-serif",
         "baskerville": "'Libre Baskerville', 'Georgia', serif",
         "open-sans": "'Open Sans', 'Arial', sans-serif",
+        "oswald": "'Oswald', 'Arial Black', sans-serif",
       };
       const drawTextElements = (cell: { x: number; y: number }, target: "front" | "back", row: "primary" | "secondary", tc: string) => {
         for (const el of config.textElements) {
@@ -480,25 +483,26 @@ export default function JerseyCustomizer() {
       });
 
     try {
-      const templateImg = await loadImg("/boceto.png");
+      const tmpl2 = TEMPLATE_CONFIGS[config.sketchType];
+      const templateImg = await loadImg(tmpl2.imagePath);
 
       // Crop only the top row (both rows identical in the 2×2 template)
-      const cropH = Math.round(templateImg.naturalHeight * 0.46);
+      const cropH = Math.round(templateImg.naturalHeight * tmpl2.cropTopRatio);
       const staging = document.createElement("canvas");
       staging.width = templateImg.naturalWidth;
       staging.height = cropH;
       const sCtx = staging.getContext("2d")!;
       sCtx.drawImage(templateImg, 0, 0, templateImg.naturalWidth, cropH, 0, 0, templateImg.naturalWidth, cropH);
-      fillBodyInteriors(sCtx, templateImg.naturalWidth, cropH);
+      fillBodyInteriors(sCtx, templateImg.naturalWidth, cropH, tmpl2.bodySeeds);
 
       const imgH = cropH;
 
       const pGrad2 = config.useGradient ? config.gradientColor : undefined;
       const sGrad2 = config.useGradientSecondary ? config.gradientSecondaryColor : undefined;
-      const fpUrl = recolorPixels(staging, FRONT_CROP_SX, 0, CROP_SW, imgH, config.color, CROP_SW, imgH, config.secondaryColor, pGrad2, sGrad2);
-      const bpUrl = recolorPixels(staging, BACK_CROP_SX, 0, CROP_SW, imgH, config.color, CROP_SW, imgH, config.secondaryColor, pGrad2, sGrad2);
-      const fsUrl = recolorPixels(staging, FRONT_CROP_SX, 0, CROP_SW, imgH, config.secondaryColor, CROP_SW, imgH, config.color, sGrad2, pGrad2);
-      const bsUrl = recolorPixels(staging, BACK_CROP_SX, 0, CROP_SW, imgH, config.secondaryColor, CROP_SW, imgH, config.color, sGrad2, pGrad2);
+      const fpUrl = recolorPixels(staging, tmpl2.frontCropSx, 0, tmpl2.cropSw, imgH, config.color, tmpl2.cropSw, imgH, config.secondaryColor, pGrad2, sGrad2, tmpl2.bgSeeds, tmpl2.dorsoSeeds);
+      const bpUrl = recolorPixels(staging, tmpl2.backCropSx, 0, tmpl2.cropSw, imgH, config.color, tmpl2.cropSw, imgH, config.secondaryColor, pGrad2, sGrad2, tmpl2.bgSeeds, tmpl2.dorsoSeeds);
+      const fsUrl = recolorPixels(staging, tmpl2.frontCropSx, 0, tmpl2.cropSw, imgH, config.secondaryColor, tmpl2.cropSw, imgH, config.color, sGrad2, pGrad2, tmpl2.bgSeeds, tmpl2.dorsoSeeds);
+      const bsUrl = recolorPixels(staging, tmpl2.backCropSx, 0, tmpl2.cropSw, imgH, config.secondaryColor, tmpl2.cropSw, imgH, config.color, sGrad2, pGrad2, tmpl2.bgSeeds, tmpl2.dorsoSeeds);
 
       const fpImg = await loadImg(fpUrl);
       const bpImg = await loadImg(bpUrl);
@@ -589,6 +593,7 @@ export default function JerseyCustomizer() {
         "franklin": "'Libre Franklin', 'Arial', sans-serif",
         "baskerville": "'Libre Baskerville', 'Georgia', serif",
         "open-sans": "'Open Sans', 'Arial', sans-serif",
+        "oswald": "'Oswald', 'Arial Black', sans-serif",
       };
       const drawTextElements2 = (cell: { x: number; y: number }, target: "front" | "back", row: "primary" | "secondary", tc: string) => {
         for (const el of config.textElements) {
@@ -1079,6 +1084,7 @@ export default function JerseyCustomizer() {
                                 { value: "franklin", style: "'Libre Franklin', sans-serif" },
                                 { value: "baskerville", style: "'Libre Baskerville', serif" },
                                 { value: "open-sans", style: "'Open Sans', sans-serif" },
+                                { value: "oswald", style: "'Oswald', sans-serif" },
                               ].find(f => f.value === el.font)?.style
                             }}
                           >
@@ -1086,6 +1092,7 @@ export default function JerseyCustomizer() {
                             <option value="franklin" style={{ fontFamily: "'Libre Franklin', sans-serif" }}>ITC Franklin Gothic</option>
                             <option value="baskerville" style={{ fontFamily: "'Libre Baskerville', serif" }}>Libre Baskerville</option>
                             <option value="open-sans" style={{ fontFamily: "'Open Sans', sans-serif" }}>Open Sans</option>
+                            <option value="oswald" style={{ fontFamily: "'Oswald', sans-serif" }}>Oswald</option>
                           </select>
                           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-black/50">
                             <svg className="h-3 w-3 fill-current" viewBox="0 0 20 20">
@@ -1260,6 +1267,33 @@ export default function JerseyCustomizer() {
                   Agregar sponsor
                 </button>
               </div>
+            </div>
+
+            <Separator className="bg-black/8" />
+
+            {/* Step 7 — Sketch Type */}
+            <div>
+              <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase mb-3">
+                07 — Boceto
+              </h2>
+              <div className="relative">
+                <select
+                  value={config.sketchType}
+                  onChange={(e) => setConfig((prev) => ({ ...prev, sketchType: e.target.value as SketchType }))}
+                  className="w-full appearance-none rounded-none border border-black/20 bg-[#f7f7f7] px-4 py-3 text-[12px] sm:text-[11px] font-semibold tracking-widest uppercase text-black/70 outline-none focus-visible:border-black cursor-pointer"
+                >
+                  <option value="clasica">Clásica</option>
+                  <option value="recorte-lateral">Recorte Lateral</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-black/50">
+                  <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-[11px] text-black/40 mt-2">
+                Elegí el tipo de boceto para la remera.
+              </p>
             </div>
 
             <Separator className="bg-black/8" />

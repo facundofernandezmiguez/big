@@ -1,4 +1,6 @@
-export type FontOption = "bebas" | "franklin" | "baskerville" | "open-sans";
+export type FontOption = "bebas" | "franklin" | "baskerville" | "open-sans" | "oswald";
+
+export type SketchType = "clasica" | "recorte-lateral";
 
 export interface TextElement {
   id: string;
@@ -23,6 +25,7 @@ export interface SponsorElement {
 }
 
 export interface JerseyConfig {
+  sketchType: SketchType;
   color: string;
   secondaryColor: string;
   useGradient: boolean;
