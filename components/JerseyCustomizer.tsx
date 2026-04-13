@@ -429,9 +429,9 @@ export default function JerseyCustomizer() {
         "baskerville": "'Libre Baskerville', 'Georgia', serif",
         "open-sans": "'Open Sans', 'Arial', sans-serif",
       };
-      const drawTextElements = (cell: { x: number; y: number }, target: "front" | "back", tc: string) => {
+      const drawTextElements = (cell: { x: number; y: number }, target: "front" | "back", row: "primary" | "secondary", tc: string) => {
         for (const el of config.textElements) {
-          if (el.target !== target || !el.text) continue;
+          if (el.target !== target || el.row !== row || !el.text) continue;
           const elFont = fontMap[el.font] || fontMap["bebas"];
           ctx.font = `900 ${Math.round(CH * 0.05 * el.size)}px ${elFont}`;
           ctx.textAlign = "center";
@@ -440,10 +440,10 @@ export default function JerseyCustomizer() {
           ctx.fillText(el.text, cell.x + CW * (el.x / 100), cell.y + CH * (el.y / 100));
         }
       };
-      drawTextElements(cells[0], "front", config.letterColor);
-      drawTextElements(cells[1], "back", config.letterColor);
-      drawTextElements(cells[2], "front", config.letterColorBack);
-      drawTextElements(cells[3], "back", config.letterColorBack);
+      drawTextElements(cells[0], "front", "primary", config.letterColor);
+      drawTextElements(cells[1], "back", "primary", config.letterColor);
+      drawTextElements(cells[2], "front", "secondary", config.letterColorBack);
+      drawTextElements(cells[3], "back", "secondary", config.letterColorBack);
 
       // Labels
       ctx.font = "bold 11px Arial, sans-serif";
@@ -588,9 +588,9 @@ export default function JerseyCustomizer() {
         "baskerville": "'Libre Baskerville', 'Georgia', serif",
         "open-sans": "'Open Sans', 'Arial', sans-serif",
       };
-      const drawTextElements2 = (cell: { x: number; y: number }, target: "front" | "back", tc: string) => {
+      const drawTextElements2 = (cell: { x: number; y: number }, target: "front" | "back", row: "primary" | "secondary", tc: string) => {
         for (const el of config.textElements) {
-          if (el.target !== target || !el.text) continue;
+          if (el.target !== target || el.row !== row || !el.text) continue;
           const elFont = fontMap2[el.font] || fontMap2["bebas"];
           ctx.font = `900 ${Math.round(CH * 0.05 * el.size)}px ${elFont}`;
           ctx.textAlign = "center";
@@ -599,10 +599,10 @@ export default function JerseyCustomizer() {
           ctx.fillText(el.text, cell.x + CW * (el.x / 100), cell.y + CH * (el.y / 100));
         }
       };
-      drawTextElements2(cells[0], "front", config.letterColor);
-      drawTextElements2(cells[1], "back", config.letterColor);
-      drawTextElements2(cells[2], "front", config.letterColorBack);
-      drawTextElements2(cells[3], "back", config.letterColorBack);
+      drawTextElements2(cells[0], "front", "primary", config.letterColor);
+      drawTextElements2(cells[1], "back", "primary", config.letterColor);
+      drawTextElements2(cells[2], "front", "secondary", config.letterColorBack);
+      drawTextElements2(cells[3], "back", "secondary", config.letterColorBack);
 
       // Labels
       ctx.font = "bold 11px Arial, sans-serif";
@@ -1096,7 +1096,7 @@ export default function JerseyCustomizer() {
 
                       <p className="text-[10px] text-black/30 flex items-center gap-1">
                         <GripVertical className="w-3 h-3" />
-                        Arrastrá el texto en la previsualización para posicionarlo
+                        Arrastrá el texto en la previsualización para posicionarlo o cambiarlo de fila
                       </p>
                     </div>
                   ))}

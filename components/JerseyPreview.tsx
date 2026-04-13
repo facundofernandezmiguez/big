@@ -383,10 +383,10 @@ function useRecoloredPair(color: string, dorsoColor: string, gradientColor2?: st
 
 // ─── Component ───
 export default function JerseyPreview({ config, className, onTextMove, onSponsorMove, selectedObjectId, selectedObjectType, onObjectSelect }: JerseyPreviewProps) {
-  const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number; containerRect: DOMRect; origTarget: "front" | "back"; origRow: "primary" | "secondary"; moveCb: (id: string, x: number, y: number, target?: "front" | "back", row?: "primary" | "secondary") => void } | null>(null);
+  const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number; containerRect: DOMRect; origTarget: "front" | "back"; origRow?: "primary" | "secondary"; moveCb: (id: string, x: number, y: number, target?: "front" | "back", row?: "primary" | "secondary") => void } | null>(null);
   const containerRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, item: { id: string; x: number; y: number; target: "front" | "back"; row: "primary" | "secondary" }, containerKey: string, moveCb: (id: string, x: number, y: number, target?: "front" | "back", row?: "primary" | "secondary") => void) => {
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, item: { id: string; x: number; y: number; target: "front" | "back"; row?: "primary" | "secondary" }, containerKey: string, moveCb: (id: string, x: number, y: number, target?: "front" | "back", row?: "primary" | "secondary") => void) => {
     e.preventDefault();
     e.stopPropagation();
     const container = containerRefs.current[containerKey];
