@@ -6,7 +6,7 @@ import { JerseyConfig, TextElement, SponsorElement, FontOption } from "./types";
 interface JerseyPreviewProps {
   config: JerseyConfig;
   className?: string;
-  onTextMove?: (id: string, x: number, y: number, target?: "front" | "back") => void;
+  onTextMove?: (id: string, x: number, y: number, target?: "front" | "back", row?: "primary" | "secondary") => void;
   onSponsorMove?: (id: string, x: number, y: number, target?: "front" | "back") => void;
   selectedObjectId?: string | null;
   selectedObjectType?: "text" | "sponsor" | "shield" | null;
@@ -383,10 +383,10 @@ function useRecoloredPair(color: string, dorsoColor: string, gradientColor2?: st
 
 // ─── Component ───
 export default function JerseyPreview({ config, className, onTextMove, onSponsorMove, selectedObjectId, selectedObjectType, onObjectSelect }: JerseyPreviewProps) {
-  const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number; containerRect: DOMRect; origTarget: "front" | "back"; moveCb: (id: string, x: number, y: number, target?: "front" | "back") => void } | null>(null);
+  const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number; containerRect: DOMRect; origTarget: "front" | "back"; origRow: "primary" | "secondary"; moveCb: (id: string, x: number, y: number, target?: "front" | "back", row?: "primary" | "secondary") => void } | null>(null);
   const containerRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, item: { id: string; x: number; y: number; target: "front" | "back" }, containerKey: string, moveCb: (id: string, x: number, y: number, target?: "front" | "back") => void) => {
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, item: { id: string; x: number; y: number; target: "front" | "back"; row: "primary" | "secondary" }, containerKey: string, moveCb: (id: string, x: number, y: number, target?: "front" | "back", row?: "primary" | "secondary") => void) => {
     e.preventDefault();
     e.stopPropagation();
     const container = containerRefs.current[containerKey];
@@ -394,7 +394,7 @@ export default function JerseyPreview({ config, className, onTextMove, onSponsor
     const rect = container.getBoundingClientRect();
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    dragRef.current = { id: item.id, startX: clientX, startY: clientY, origX: item.x, origY: item.y, containerRect: rect, origTarget: item.target, moveCb };
+    dragRef.current = { id: item.id, startX: clientX, startY: clientY, origX: item.x, origY: item.y, containerRect: rect, origTarget: item.target, origRow: item.row, moveCb };
 
     const handleMove = (ev: MouseEvent | TouchEvent) => {
       if (!dragRef.current) return;
@@ -412,17 +412,26 @@ export default function JerseyPreview({ config, className, onTextMove, onSponsor
         const cx = 'touches' in ev && ev.changedTouches?.length ? ev.changedTouches[0].clientX : (ev as MouseEvent).clientX;
         const cy = 'touches' in ev && ev.changedTouches?.length ? ev.changedTouches[0].clientY : (ev as MouseEvent).clientY;
         const origTarget = dragRef.current.origTarget;
-        const oppositeType = origTarget === "back" ? "front" : "back";
+        const origRow = dragRef.current.origRow;
 
+        // Check all containers to find which one the pointer landed on
         let switched = false;
         for (const [key, ref] of Object.entries(containerRefs.current)) {
-          if (!ref || !key.startsWith(oppositeType + "-")) continue;
+          if (!ref) continue;
           const r = ref.getBoundingClientRect();
           if (cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom) {
-            const newX = Math.max(0, Math.min(100, ((cx - r.left) / r.width) * 100));
-            const newY = Math.max(0, Math.min(100, ((cy - r.top) / r.height) * 100));
-            dragRef.current.moveCb(dragRef.current.id, newX, newY, oppositeType);
-            switched = true;
+            // Parse key: format is "row-target" e.g. "primary-front", "secondary-back"
+            const parts = key.split('-');
+            const dropRow = parts[0] as "primary" | "secondary";
+            const dropTarget = parts[1] as "front" | "back";
+            if (dropRow !== origRow || dropTarget !== origTarget) {
+              const newX = Math.max(0, Math.min(100, ((cx - r.left) / r.width) * 100));
+              const newY = Math.max(0, Math.min(100, ((cy - r.top) / r.height) * 100));
+              const rowArg = dropRow !== origRow ? dropRow : undefined;
+              const targetArg = dropTarget !== origTarget ? dropTarget : undefined;
+              dragRef.current.moveCb(dragRef.current.id, newX, newY, targetArg, rowArg);
+              switched = true;
+            }
             break;
           }
         }
@@ -448,9 +457,9 @@ export default function JerseyPreview({ config, className, onTextMove, onSponsor
     window.addEventListener('touchend', handleEnd);
   }, []);
 
-  const renderTextElements = (target: "front" | "back", containerKey: string, textColor: string) => {
+  const renderTextElements = (target: "front" | "back", row: "primary" | "secondary", containerKey: string, textColor: string) => {
     return config.textElements
-      .filter((el) => el.target === target)
+      .filter((el) => el.target === target && el.row === row)
       .map((el) => {
         const isSelected = selectedObjectId === el.id && selectedObjectType === "text";
         return (
@@ -528,19 +537,19 @@ export default function JerseyPreview({ config, className, onTextMove, onSponsor
 
   const renderRow = (
     pair: { frontUrl: string; backUrl: string },
-    color: string,
+    row: "primary" | "secondary",
     labelFront: string,
     labelBack: string,
     textColor: string
   ) => (
     <>
       {/* Front */}
-      <div className="relative flex flex-col items-center overflow-visible" ref={(node) => { containerRefs.current[`front-${color}`] = node; }}>
+      <div className="relative flex flex-col items-center overflow-visible" ref={(node) => { containerRefs.current[`${row}-front`] = node; }}>
         {pair.frontUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={pair.frontUrl} alt={labelFront} className="w-full h-auto" draggable={false} style={imgStyle} />
         ) : placeholder}
-        {config.shieldUrl && config.showShield && (
+        {row === "primary" && config.shieldUrl && config.showShield && (
           <div
             className="absolute cursor-pointer"
             style={{
@@ -567,15 +576,15 @@ export default function JerseyPreview({ config, className, onTextMove, onSponsor
             />
           </div>
         )}
-        {renderTextElements("front", `front-${color}`, textColor)}
-        {renderSponsorElements("front", `front-${color}`)}
+        {renderTextElements("front", row, `${row}-front`, textColor)}
+        {renderSponsorElements("front", `${row}-front`)}
         <span className="mt-1 text-[10px] font-bold tracking-[0.15em] uppercase text-black/40">
           {labelFront}
         </span>
       </div>
 
       {/* Back */}
-      <div className="relative flex flex-col items-center overflow-visible" ref={(node) => { containerRefs.current[`back-${color}`] = node; }}>
+      <div className="relative flex flex-col items-center overflow-visible" ref={(node) => { containerRefs.current[`${row}-back`] = node; }}>
         {pair.backUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={pair.backUrl} alt={labelBack} className="w-full h-auto" draggable={false} style={imgStyle} />
@@ -594,8 +603,8 @@ export default function JerseyPreview({ config, className, onTextMove, onSponsor
             {config.number}
           </div>
         )}
-        {renderTextElements("back", `back-${color}`, textColor)}
-        {renderSponsorElements("back", `back-${color}`)}
+        {renderTextElements("back", row, `${row}-back`, textColor)}
+        {renderSponsorElements("back", `${row}-back`)}
         <span className="mt-1 text-[10px] font-bold tracking-[0.15em] uppercase text-black/40">
           {labelBack}
         </span>
@@ -606,8 +615,8 @@ export default function JerseyPreview({ config, className, onTextMove, onSponsor
   return (
     <div className={`select-none ${className ?? ""}`}>
       <div className="grid grid-cols-2 gap-x-5 gap-y-6 overflow-visible">
-        {renderRow(primary, config.color, "Frente", "Espalda", config.letterColor)}
-        {renderRow(secondary, config.secondaryColor, "Frente (Dorso)", "Espalda (Dorso)", config.letterColorBack)}
+        {renderRow(primary, "primary", "Frente", "Espalda", config.letterColor)}
+        {renderRow(secondary, "secondary", "Frente (Dorso)", "Espalda (Dorso)", config.letterColorBack)}
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ export interface TextElement {
   x: number;  // % from left (0-100)
   y: number;  // % from top (0-100)
   target: "front" | "back";
+  row: "primary" | "secondary"; // which jersey row the text belongs to
 }
 
 export interface SponsorElement {

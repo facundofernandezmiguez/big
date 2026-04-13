@@ -28,7 +28,7 @@ export default function JerseyCustomizer() {
     number: "10",
     showNumber: true,
     textElements: [
-      { id: "1", text: "MI EQUIPO", font: "bebas", size: 1, x: 50, y: 77, target: "back" },
+      { id: "1", text: "MI EQUIPO", font: "bebas", size: 1, x: 50, y: 77, target: "back", row: "primary" },
     ],
     sponsors: [],
   });
@@ -44,6 +44,7 @@ export default function JerseyCustomizer() {
       x: 50,
       y: 50,
       target: "back",
+      row: "primary",
     };
     setConfig((prev) => ({ ...prev, textElements: [...prev.textElements, newEl] }));
   };
@@ -62,13 +63,14 @@ export default function JerseyCustomizer() {
     }));
   };
 
-  const handleTextMove = useCallback((id: string, x: number, y: number, target?: "front" | "back") => {
+  const handleTextMove = useCallback((id: string, x: number, y: number, target?: "front" | "back", row?: "primary" | "secondary") => {
     setConfig((prev) => ({
       ...prev,
       textElements: prev.textElements.map((el) => {
         if (el.id !== id) return el;
         const updates: Partial<TextElement> = { x, y };
         if (target) updates.target = target;
+        if (row) updates.row = row;
         return { ...el, ...updates };
       }),
     }));
