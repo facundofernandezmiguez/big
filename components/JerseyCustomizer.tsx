@@ -29,7 +29,7 @@ export default function JerseyCustomizer() {
     number: "10",
     showNumber: true,
     textElements: [
-      { id: "1", text: "MI EQUIPO", font: "bebas", bold: true, size: 1, x: 50, y: 77, target: "back", row: "primary" },
+      { id: "1", text: "MI EQUIPO", font: "bebas", bold: true, size: 1, x: 50, y: 77, target: "back", row: "primary", placement: "lado1" },
     ],
     sponsors: [],
   });
@@ -47,6 +47,7 @@ export default function JerseyCustomizer() {
       y: 50,
       target: "back",
       row: "primary",
+      placement: "lado1",
     };
     setConfig((prev) => ({ ...prev, textElements: [...prev.textElements, newEl] }));
   };
@@ -72,7 +73,10 @@ export default function JerseyCustomizer() {
         if (el.id !== id) return el;
         const updates: Partial<TextElement> = { x, y };
         if (target) updates.target = target;
-        if (row) updates.row = row;
+        if (row && el.placement !== "ambos") {
+          updates.row = row;
+          updates.placement = row === "primary" ? "lado1" : "lado2";
+        }
         return { ...el, ...updates };
       }),
     }));
@@ -435,7 +439,9 @@ export default function JerseyCustomizer() {
       };
       const drawTextElements = (cell: { x: number; y: number }, target: "front" | "back", row: "primary" | "secondary", tc: string) => {
         for (const el of config.textElements) {
-          if (el.target !== target || el.row !== row || !el.text) continue;
+          if (el.target !== target || !el.text) continue;
+          const match = el.placement === "ambos" || (el.placement === "lado1" && row === "primary") || (el.placement === "lado2" && row === "secondary");
+          if (!match) continue;
           const elFont = fontMap[el.font] || fontMap["bebas"];
           const elWeight = el.bold ? "900" : "400";
           ctx.font = `${elWeight} ${Math.round(CH * 0.05 * el.size)}px ${elFont}`;
@@ -455,10 +461,10 @@ export default function JerseyCustomizer() {
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       ctx.fillStyle = "#999";
-      ctx.fillText("FRENTE", cells[0].x + CW / 2, cells[0].y + CH + 4);
-      ctx.fillText("ESPALDA", cells[1].x + CW / 2, cells[1].y + CH + 4);
-      ctx.fillText("FRENTE (DORSO)", cells[2].x + CW / 2, cells[2].y + CH + 4);
-      ctx.fillText("ESPALDA (DORSO)", cells[3].x + CW / 2, cells[3].y + CH + 4);
+      ctx.fillText("LADO 1 - FRENTE", cells[0].x + CW / 2, cells[0].y + CH + 4);
+      ctx.fillText("LADO 1 - ESPALDA", cells[1].x + CW / 2, cells[1].y + CH + 4);
+      ctx.fillText("LADO 2 - FRENTE", cells[2].x + CW / 2, cells[2].y + CH + 4);
+      ctx.fillText("LADO 2 - ESPALDA", cells[3].x + CW / 2, cells[3].y + CH + 4);
 
       const firstText = config.textElements.find(el => el.text)?.text || "equipo";
       const link = document.createElement("a");
@@ -597,7 +603,9 @@ export default function JerseyCustomizer() {
       };
       const drawTextElements2 = (cell: { x: number; y: number }, target: "front" | "back", row: "primary" | "secondary", tc: string) => {
         for (const el of config.textElements) {
-          if (el.target !== target || el.row !== row || !el.text) continue;
+          if (el.target !== target || !el.text) continue;
+          const match2 = el.placement === "ambos" || (el.placement === "lado1" && row === "primary") || (el.placement === "lado2" && row === "secondary");
+          if (!match2) continue;
           const elFont = fontMap2[el.font] || fontMap2["bebas"];
           const elWeight2 = el.bold ? "900" : "400";
           ctx.font = `${elWeight2} ${Math.round(CH * 0.05 * el.size)}px ${elFont}`;
@@ -617,10 +625,10 @@ export default function JerseyCustomizer() {
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       ctx.fillStyle = "#999";
-      ctx.fillText("FRENTE", cells[0].x + CW / 2, cells[0].y + CH + 4);
-      ctx.fillText("ESPALDA", cells[1].x + CW / 2, cells[1].y + CH + 4);
-      ctx.fillText("FRENTE (DORSO)", cells[2].x + CW / 2, cells[2].y + CH + 4);
-      ctx.fillText("ESPALDA (DORSO)", cells[3].x + CW / 2, cells[3].y + CH + 4);
+      ctx.fillText("LADO 1 - FRENTE", cells[0].x + CW / 2, cells[0].y + CH + 4);
+      ctx.fillText("LADO 1 - ESPALDA", cells[1].x + CW / 2, cells[1].y + CH + 4);
+      ctx.fillText("LADO 2 - FRENTE", cells[2].x + CW / 2, cells[2].y + CH + 4);
+      ctx.fillText("LADO 2 - ESPALDA", cells[3].x + CW / 2, cells[3].y + CH + 4);
 
       // Descargar la imagen
       const firstText2 = config.textElements.find(el => el.text)?.text || "equipo";
@@ -634,7 +642,7 @@ export default function JerseyCustomizer() {
       // Abrir WhatsApp con el texto (la imagen ya se descargó para que el usuario la adjunte manualmente)
       const phone = "5491126237532";
       const textsDescription = config.textElements.filter(el => el.text).map(el => el.text).join(", ") || "Sin texto";
-      const message = `Hola! Quisiera pedir este modelo!%0A%0A*Detalles:*%0A- Textos: ${textsDescription}%0A- Color Principal: ${config.color}%0A- Color Dorso: ${config.secondaryColor}%0A%0ATe adjunto la imagen que acabo de descargar con el diseño.`;
+      const message = `Hola! Quisiera pedir este modelo!%0A%0A*Detalles:*%0A- Textos: ${textsDescription}%0A- Color Principal: ${config.color}%0A- Color Lado 2: ${config.secondaryColor}%0A%0ATe adjunto la imagen que acabo de descargar con el diseño.`;
       const whatsappUrl = `https://wa.me/${phone}?text=${message}`;
       
       // Pequeño delay para asegurar que la descarga comience antes de redirigir
@@ -865,7 +873,7 @@ export default function JerseyCustomizer() {
             <div>
               <div className="flex items-baseline justify-between mb-3">
                 <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase">
-                  02 — Color de la remera
+                  02 — Color de lado 1
                 </h2>
                 <span className="text-[11px] text-black/45 font-medium uppercase">
                   {config.color}
@@ -931,7 +939,7 @@ export default function JerseyCustomizer() {
             <div>
               <div className="flex items-baseline justify-between mb-3">
                 <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase">
-                  03 — Color del dorso
+                  03 — Color de lado 2
                 </h2>
                 <span className="text-[11px] text-black/45 font-medium uppercase">
                   {config.secondaryColor}
@@ -949,7 +957,7 @@ export default function JerseyCustomizer() {
                 </div>
                 <div className="flex-1">
                   <p className="text-[12px] sm:text-[11px] text-black/50 sm:text-black/40 leading-relaxed">
-                    Elegí el color contrastante para el dorso y recortes.
+                    Elegí el color contrastante para el lado 2 y recortes.
                   </p>
                 </div>
               </div>
@@ -1116,9 +1124,36 @@ export default function JerseyCustomizer() {
                         <span className="text-[10px] text-black/40 w-8 text-right">{el.size.toFixed(1)}x</span>
                       </div>
 
+                      {/* Placement selector */}
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] text-black/40 whitespace-nowrap">Ubicación</span>
+                        <div className="flex gap-1 flex-1">
+                          {([
+                            { value: "lado1", label: "Lado 1" },
+                            { value: "lado2", label: "Lado 2" },
+                            { value: "ambos", label: "Ambos lados" },
+                          ] as const).map((opt) => (
+                            <button
+                              key={opt.value}
+                              onClick={() => handleUpdateText(el.id, {
+                                placement: opt.value,
+                                row: opt.value === "lado2" ? "secondary" : "primary",
+                              })}
+                              className={`flex-1 py-1.5 px-1 text-[10px] font-medium uppercase tracking-wide border transition-colors ${
+                                el.placement === opt.value
+                                  ? "bg-black text-white border-black"
+                                  : "bg-white text-black/60 border-black/20 hover:border-black/40"
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
                       <p className="text-[10px] text-black/30 flex items-center gap-1">
                         <GripVertical className="w-3 h-3" />
-                        Arrastrá el texto en la previsualización para posicionarlo o cambiarlo de fila
+                        Arrastrá el texto en la previsualización para posicionarlo
                       </p>
                     </div>
                   ))}
@@ -1148,7 +1183,7 @@ export default function JerseyCustomizer() {
                 {/* Front Text Color */}
                 <div className="flex items-center justify-between gap-4 bg-[#f7f7f7] border border-black/8 p-4 sm:p-3">
                   <div className="flex flex-col gap-1">
-                    <span className="text-[12px] sm:text-[11px] font-semibold tracking-widest uppercase text-black/70">Frente</span>
+                    <span className="text-[12px] sm:text-[11px] font-semibold tracking-widest uppercase text-black/70">Lado 1</span>
                     <span className="text-[10px] text-black/40 uppercase">{config.letterColor}</span>
                   </div>
                   <div className="relative w-12 h-12 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-black/20 shadow-sm cursor-pointer hover:scale-105 transition-transform">
@@ -1165,7 +1200,7 @@ export default function JerseyCustomizer() {
                 {/* Back Text Color */}
                 <div className="flex items-center justify-between gap-4 bg-[#f7f7f7] border border-black/8 p-4 sm:p-3">
                   <div className="flex flex-col gap-1">
-                    <span className="text-[12px] sm:text-[11px] font-semibold tracking-widest uppercase text-black/70">Espalda</span>
+                    <span className="text-[12px] sm:text-[11px] font-semibold tracking-widest uppercase text-black/70">Lado 2</span>
                     <span className="text-[10px] text-black/40 uppercase">{config.letterColorBack}</span>
                   </div>
                   <div className="relative w-12 h-12 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-black/20 shadow-sm cursor-pointer hover:scale-105 transition-transform">

@@ -12,6 +12,7 @@ export interface TextElement {
   y: number;  // % from top (0-100)
   target: "front" | "back";
   row: "primary" | "secondary"; // which jersey row the text belongs to
+  placement: "lado1" | "lado2" | "ambos"; // lado1=primary row, lado2=secondary row, ambos=both
 }
 
 export interface SponsorElement {

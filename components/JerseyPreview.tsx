@@ -515,7 +515,7 @@ export default function JerseyPreview({ config, className, onTextMove, onSponsor
 
   const renderTextElements = (target: "front" | "back", row: "primary" | "secondary", containerKey: string, textColor: string) => {
     return config.textElements
-      .filter((el) => el.target === target && el.row === row)
+      .filter((el) => el.target === target && (el.placement === "ambos" || (el.placement === "lado1" && row === "primary") || (el.placement === "lado2" && row === "secondary")))
       .map((el) => {
         const isSelected = selectedObjectId === el.id && selectedObjectType === "text";
         return (
@@ -671,8 +671,8 @@ export default function JerseyPreview({ config, className, onTextMove, onSponsor
   return (
     <div className={`select-none ${className ?? ""}`}>
       <div className="grid grid-cols-2 gap-x-5 gap-y-6 overflow-visible">
-        {renderRow(primary, "primary", "Frente", "Espalda", config.letterColor)}
-        {renderRow(secondary, "secondary", "Frente (Dorso)", "Espalda (Dorso)", config.letterColorBack)}
+        {renderRow(primary, "primary", "Lado 1 - Frente", "Lado 1 - Espalda", config.letterColor)}
+        {renderRow(secondary, "secondary", "Lado 2 - Frente", "Lado 2 - Espalda", config.letterColorBack)}
       </div>
     </div>
   );
