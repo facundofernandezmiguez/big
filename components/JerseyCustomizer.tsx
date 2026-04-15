@@ -9,7 +9,7 @@ import { Upload, Download, Loader2, X, Plus, GripVertical } from "lucide-react";
 import JerseyPreview from "./JerseyPreview";
 import { JerseyConfig, TextElement, SponsorElement, FontOption, SketchType } from "./types";
 import { removeBackground } from "@imgly/background-removal";
-import { toPng } from "html-to-image";
+import html2canvas from "html2canvas";
 
 export default function JerseyCustomizer() {
   const [config, setConfig] = useState<JerseyConfig>({
@@ -330,10 +330,13 @@ export default function JerseyCustomizer() {
     await new Promise(r => setTimeout(r, 300));
 
     try {
-      const dataUrl = await toPng(gridEl, {
+      await document.fonts.ready;
+      const canvas = await html2canvas(gridEl, {
         backgroundColor: '#ffffff',
-        pixelRatio: 3,
+        scale: 3,
+        useCORS: true,
       });
+      const dataUrl = canvas.toDataURL('image/png');
 
       const firstText = config.textElements.find(el => el.text)?.text || "equipo";
       const link = document.createElement("a");
@@ -364,10 +367,13 @@ export default function JerseyCustomizer() {
     await new Promise(r => setTimeout(r, 300));
 
     try {
-      const dataUrl = await toPng(gridEl, {
+      await document.fonts.ready;
+      const canvas = await html2canvas(gridEl, {
         backgroundColor: '#ffffff',
-        pixelRatio: 3,
+        scale: 3,
+        useCORS: true,
       });
+      const dataUrl = canvas.toDataURL('image/png');
 
       const firstText = config.textElements.find(el => el.text)?.text || "equipo";
       const fileName = `big-sportswear-${firstText}.png`;
