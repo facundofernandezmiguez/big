@@ -7,9 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Upload, Download, Loader2, X, Plus, GripVertical } from "lucide-react";
 import JerseyPreview from "./JerseyPreview";
-import { recolorPixels, fillBodyInteriors, TEMPLATE_CONFIGS } from "./JerseyPreview";
 import { JerseyConfig, TextElement, SponsorElement, FontOption, SketchType } from "./types";
 import { removeBackground } from "@imgly/background-removal";
+import { toPng } from "html-to-image";
 
 export default function JerseyCustomizer() {
   const [config, setConfig] = useState<JerseyConfig>({
@@ -116,6 +116,7 @@ export default function JerseyCustomizer() {
   const [removeBgError, setRemoveBgError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const jerseyGridRef = useRef<HTMLDivElement>(null);
 
   const handleColorSelect = (hex: string) => {
     setConfig((prev) => ({ ...prev, color: hex }));
@@ -315,342 +316,74 @@ export default function JerseyCustomizer() {
   }, []);
 
   const handleDownload = useCallback(async () => {
-    const loadImg = (src: string): Promise<HTMLImageElement> =>
-      new Promise((res, rej) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => res(img);
-        img.onerror = rej;
-        img.src = src;
-      });
+    const gridEl = jerseyGridRef.current;
+    if (!gridEl) return;
+
+    setSelectedObject(null);
+    await new Promise(r => setTimeout(r, 150));
 
     try {
-      const tmpl = TEMPLATE_CONFIGS[config.sketchType];
-      const templateImg = await loadImg(tmpl.imagePath);
-
-      // Crop only the top row (both rows identical in the 2×2 template)
-      const cropH = Math.round(templateImg.naturalHeight * tmpl.cropTopRatio);
-      const staging = document.createElement("canvas");
-      staging.width = templateImg.naturalWidth;
-      staging.height = cropH;
-      const sCtx = staging.getContext("2d")!;
-      sCtx.drawImage(templateImg, 0, 0, templateImg.naturalWidth, cropH, 0, 0, templateImg.naturalWidth, cropH);
-      fillBodyInteriors(sCtx, templateImg.naturalWidth, cropH, tmpl.bodySeeds);
-
-      const imgH = cropH;
-
-      const pGrad = config.useGradient ? config.gradientColor : undefined;
-      const sGrad = config.useGradientSecondary ? config.gradientSecondaryColor : undefined;
-      const fpUrl = recolorPixels(staging, tmpl.frontCropSx, 0, tmpl.cropSw, imgH, config.color, tmpl.cropSw, imgH, config.secondaryColor, pGrad, sGrad, tmpl.bgSeeds, tmpl.dorsoSeeds);
-      const bpUrl = recolorPixels(staging, tmpl.backCropSx, 0, tmpl.cropSw, imgH, config.color, tmpl.cropSw, imgH, config.secondaryColor, pGrad, sGrad, tmpl.bgSeeds, tmpl.dorsoSeeds);
-      const fsUrl = recolorPixels(staging, tmpl.frontCropSx, 0, tmpl.cropSw, imgH, config.secondaryColor, tmpl.cropSw, imgH, config.color, sGrad, pGrad, tmpl.bgSeeds, tmpl.dorsoSeeds);
-      const bsUrl = recolorPixels(staging, tmpl.backCropSx, 0, tmpl.cropSw, imgH, config.secondaryColor, tmpl.cropSw, imgH, config.color, sGrad, pGrad, tmpl.bgSeeds, tmpl.dorsoSeeds);
-
-      const fpImg = await loadImg(fpUrl);
-      const bpImg = await loadImg(bpUrl);
-      const fsImg = await loadImg(fsUrl);
-      const bsImg = await loadImg(bsUrl);
-
-      // Layout: 2x2 grid
-      const CW = 250;
-      const ratio = fpImg.naturalHeight / fpImg.naturalWidth;
-      const CH = Math.round(CW * ratio);
-      const GAP = 24, PAD = 30, LABEL_H = 20;
-      const W = PAD * 2 + CW * 2 + GAP;
-      const H = PAD * 2 + (CH + LABEL_H) * 2 + GAP;
-
-      const canvas = document.createElement("canvas");
-      canvas.width = W;
-      canvas.height = H;
-      const ctx = canvas.getContext("2d")!;
-
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, W, H);
-
-      const cells = [
-        { x: PAD, y: PAD },
-        { x: PAD + CW + GAP, y: PAD },
-        { x: PAD, y: PAD + CH + LABEL_H + GAP },
-        { x: PAD + CW + GAP, y: PAD + CH + LABEL_H + GAP },
-      ];
-
-      ctx.drawImage(fpImg, cells[0].x, cells[0].y, CW, CH);
-      ctx.drawImage(bpImg, cells[1].x, cells[1].y, CW, CH);
-      ctx.drawImage(fsImg, cells[2].x, cells[2].y, CW, CH);
-      ctx.drawImage(bsImg, cells[3].x, cells[3].y, CW, CH);
-
-      // Shield on both fronts (only if enabled)
-      if (config.shieldUrl && config.showShield) {
-        try {
-          const shield = await loadImg(config.shieldUrl);
-          const baseW = CW * 0.22, baseH = CH * 0.22;
-          const sw2 = Math.round(baseW * config.shieldSize), sh2 = Math.round(baseH * config.shieldSize);
-          const shieldX = config.shieldPosition === "left" ? CW * 0.22 : config.shieldPosition === "center" ? CW * 0.40 : CW * 0.58;
-          const scx = shieldX + baseW / 2, scy = CH * 0.26 + baseH / 2;
-          ctx.drawImage(shield, cells[0].x + scx - sw2 / 2, cells[0].y + scy - sh2 / 2, sw2, sh2);
-          ctx.drawImage(shield, cells[2].x + scx - sw2 / 2, cells[2].y + scy - sh2 / 2, sw2, sh2);
-        } catch { /* skip */ }
-      }
-
-      // Sponsors
-      for (const sp of config.sponsors) {
-        if (!sp.imageUrl) continue;
-        try {
-          const spImg = await loadImg(sp.imageUrl);
-          const spW = Math.round(CW * 0.15 * sp.size);
-          const spH = Math.round(spW * (spImg.naturalHeight / spImg.naturalWidth));
-          const spX = CW * (sp.x / 100) - spW / 2;
-          const spY = CH * (sp.y / 100) - spH / 2;
-          if (sp.target === "front") {
-            ctx.drawImage(spImg, cells[0].x + spX, cells[0].y + spY, spW, spH);
-            ctx.drawImage(spImg, cells[2].x + spX, cells[2].y + spY, spW, spH);
-          } else {
-            ctx.drawImage(spImg, cells[1].x + spX, cells[1].y + spY, spW, spH);
-            ctx.drawImage(spImg, cells[3].x + spX, cells[3].y + spY, spW, spH);
-          }
-        } catch { /* skip */ }
-      }
-
-      // Back number on both backs
-      if (config.showNumber && config.number) {
-        const drawBackNumber = (cell: { x: number; y: number }, tc: string) => {
-          const cx = cell.x + CW / 2;
-          ctx.save();
-          ctx.font = `900 ${Math.round(CH * 0.22)}px 'Impact', 'Arial Black', sans-serif`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "top";
-          ctx.fillStyle = tc;
-          ctx.translate(cx, cell.y + CH * 0.51);
-          ctx.scale(1, 1.15);
-          ctx.fillText(config.number, 0, 0);
-          ctx.restore();
-        };
-        drawBackNumber(cells[1], config.letterColor);
-        drawBackNumber(cells[3], config.letterColorBack);
-      }
-
-      // Text elements
-      const fontMap: Record<FontOption, string> = {
-        "bebas": "'Bebas Neue', 'Arial Black', sans-serif",
-        "franklin": "'Libre Franklin', 'Arial', sans-serif",
-        "baskerville": "'Libre Baskerville', 'Georgia', serif",
-        "open-sans": "'Open Sans', 'Arial', sans-serif",
-        "oswald": "'Oswald', 'Arial Black', sans-serif",
-      };
-      const drawTextElements = (cell: { x: number; y: number }, target: "front" | "back", row: "primary" | "secondary", tc: string) => {
-        for (const el of config.textElements) {
-          if (el.target !== target || !el.text) continue;
-          const match = el.placement === "ambos" || (el.placement === "lado1" && row === "primary") || (el.placement === "lado2" && row === "secondary");
-          if (!match) continue;
-          const elFont = fontMap[el.font] || fontMap["bebas"];
-          const elWeight = el.bold ? "900" : "400";
-          ctx.font = `${elWeight} ${Math.round(CH * 0.05 * el.size)}px ${elFont}`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = tc;
-          ctx.fillText(el.text, cell.x + CW * (el.x / 100), cell.y + CH * (el.y / 100));
-        }
-      };
-      drawTextElements(cells[0], "front", "primary", config.letterColor);
-      drawTextElements(cells[1], "back", "primary", config.letterColor);
-      drawTextElements(cells[2], "front", "secondary", config.letterColorBack);
-      drawTextElements(cells[3], "back", "secondary", config.letterColorBack);
-
-      // Labels
-      ctx.font = "bold 11px Arial, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.fillStyle = "#999";
-      ctx.fillText("LADO 1 - FRENTE", cells[0].x + CW / 2, cells[0].y + CH + 4);
-      ctx.fillText("LADO 1 - ESPALDA", cells[1].x + CW / 2, cells[1].y + CH + 4);
-      ctx.fillText("LADO 2 - FRENTE", cells[2].x + CW / 2, cells[2].y + CH + 4);
-      ctx.fillText("LADO 2 - ESPALDA", cells[3].x + CW / 2, cells[3].y + CH + 4);
+      const dataUrl = await toPng(gridEl, {
+        backgroundColor: '#ffffff',
+        pixelRatio: 3,
+      });
 
       const firstText = config.textElements.find(el => el.text)?.text || "equipo";
       const link = document.createElement("a");
       link.download = `big-sportswear-${firstText}.png`;
-      link.href = canvas.toDataURL("image/png");
+      link.href = dataUrl;
       link.click();
     } catch (err) {
       console.error("Download error:", err);
     }
-  }, [config]);
+  }, [config.textElements]);
 
   const handleWhatsAppOrder = useCallback(async () => {
     setIsGeneratingImage(true);
-    
-    const loadImg = (src: string): Promise<HTMLImageElement> =>
-      new Promise((res, rej) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => res(img);
-        img.onerror = rej;
-        img.src = src;
-      });
+    const gridEl = jerseyGridRef.current;
+    if (!gridEl) { setIsGeneratingImage(false); return; }
+
+    setSelectedObject(null);
+    await new Promise(r => setTimeout(r, 150));
 
     try {
-      const tmpl2 = TEMPLATE_CONFIGS[config.sketchType];
-      const templateImg = await loadImg(tmpl2.imagePath);
+      const dataUrl = await toPng(gridEl, {
+        backgroundColor: '#ffffff',
+        pixelRatio: 3,
+      });
 
-      // Crop only the top row (both rows identical in the 2×2 template)
-      const cropH = Math.round(templateImg.naturalHeight * tmpl2.cropTopRatio);
-      const staging = document.createElement("canvas");
-      staging.width = templateImg.naturalWidth;
-      staging.height = cropH;
-      const sCtx = staging.getContext("2d")!;
-      sCtx.drawImage(templateImg, 0, 0, templateImg.naturalWidth, cropH, 0, 0, templateImg.naturalWidth, cropH);
-      fillBodyInteriors(sCtx, templateImg.naturalWidth, cropH, tmpl2.bodySeeds);
+      const firstText = config.textElements.find(el => el.text)?.text || "equipo";
+      const fileName = `big-sportswear-${firstText}.png`;
 
-      const imgH = cropH;
+      // Convert data URL to File
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], fileName, { type: "image/png" });
 
-      const pGrad2 = config.useGradient ? config.gradientColor : undefined;
-      const sGrad2 = config.useGradientSecondary ? config.gradientSecondaryColor : undefined;
-      const fpUrl = recolorPixels(staging, tmpl2.frontCropSx, 0, tmpl2.cropSw, imgH, config.color, tmpl2.cropSw, imgH, config.secondaryColor, pGrad2, sGrad2, tmpl2.bgSeeds, tmpl2.dorsoSeeds);
-      const bpUrl = recolorPixels(staging, tmpl2.backCropSx, 0, tmpl2.cropSw, imgH, config.color, tmpl2.cropSw, imgH, config.secondaryColor, pGrad2, sGrad2, tmpl2.bgSeeds, tmpl2.dorsoSeeds);
-      const fsUrl = recolorPixels(staging, tmpl2.frontCropSx, 0, tmpl2.cropSw, imgH, config.secondaryColor, tmpl2.cropSw, imgH, config.color, sGrad2, pGrad2, tmpl2.bgSeeds, tmpl2.dorsoSeeds);
-      const bsUrl = recolorPixels(staging, tmpl2.backCropSx, 0, tmpl2.cropSw, imgH, config.secondaryColor, tmpl2.cropSw, imgH, config.color, sGrad2, pGrad2, tmpl2.bgSeeds, tmpl2.dorsoSeeds);
+      const message = `Hola! Quisiera pedir este modelo!`;
 
-      const fpImg = await loadImg(fpUrl);
-      const bpImg = await loadImg(bpUrl);
-      const fsImg = await loadImg(fsUrl);
-      const bsImg = await loadImg(bsUrl);
+      // Try Web Share API with file (works on mobile → shares image directly to WhatsApp)
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          text: message,
+          files: [file],
+        });
+      } else {
+        // Fallback: download image + open WhatsApp with text
+        const link = document.createElement("a");
+        link.download = fileName;
+        link.href = dataUrl;
+        link.click();
 
-      // Layout: 2x2 grid
-      const CW = 250;
-      const ratio = fpImg.naturalHeight / fpImg.naturalWidth;
-      const CH = Math.round(CW * ratio);
-      const GAP = 24, PAD = 30, LABEL_H = 20;
-      const W = PAD * 2 + CW * 2 + GAP;
-      const H = PAD * 2 + (CH + LABEL_H) * 2 + GAP;
-
-      const canvas = document.createElement("canvas");
-      canvas.width = W;
-      canvas.height = H;
-      const ctx = canvas.getContext("2d")!;
-
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, W, H);
-
-      const cells = [
-        { x: PAD, y: PAD },
-        { x: PAD + CW + GAP, y: PAD },
-        { x: PAD, y: PAD + CH + LABEL_H + GAP },
-        { x: PAD + CW + GAP, y: PAD + CH + LABEL_H + GAP },
-      ];
-
-      ctx.drawImage(fpImg, cells[0].x, cells[0].y, CW, CH);
-      ctx.drawImage(bpImg, cells[1].x, cells[1].y, CW, CH);
-      ctx.drawImage(fsImg, cells[2].x, cells[2].y, CW, CH);
-      ctx.drawImage(bsImg, cells[3].x, cells[3].y, CW, CH);
-
-      // Shield on both fronts (only if enabled)
-      if (config.shieldUrl && config.showShield) {
-        try {
-          const shield = await loadImg(config.shieldUrl);
-          const baseW = CW * 0.22, baseH = CH * 0.22;
-          const sw2 = Math.round(baseW * config.shieldSize), sh2 = Math.round(baseH * config.shieldSize);
-          const shieldX = config.shieldPosition === "left" ? CW * 0.22 : config.shieldPosition === "center" ? CW * 0.40 : CW * 0.58;
-          const scx = shieldX + baseW / 2, scy = CH * 0.26 + baseH / 2;
-          ctx.drawImage(shield, cells[0].x + scx - sw2 / 2, cells[0].y + scy - sh2 / 2, sw2, sh2);
-          ctx.drawImage(shield, cells[2].x + scx - sw2 / 2, cells[2].y + scy - sh2 / 2, sw2, sh2);
-        } catch { /* skip */ }
+        const phone = "5491126237532";
+        const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message + "\n\nTe adjunto la imagen con el diseño.")}`;
+        setTimeout(() => {
+          window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+        }, 500);
       }
-
-      // Sponsors
-      for (const sp of config.sponsors) {
-        if (!sp.imageUrl) continue;
-        try {
-          const spImg = await loadImg(sp.imageUrl);
-          const spW = Math.round(CW * 0.15 * sp.size);
-          const spH = Math.round(spW * (spImg.naturalHeight / spImg.naturalWidth));
-          const spX = CW * (sp.x / 100) - spW / 2;
-          const spY = CH * (sp.y / 100) - spH / 2;
-          if (sp.target === "front") {
-            ctx.drawImage(spImg, cells[0].x + spX, cells[0].y + spY, spW, spH);
-            ctx.drawImage(spImg, cells[2].x + spX, cells[2].y + spY, spW, spH);
-          } else {
-            ctx.drawImage(spImg, cells[1].x + spX, cells[1].y + spY, spW, spH);
-            ctx.drawImage(spImg, cells[3].x + spX, cells[3].y + spY, spW, spH);
-          }
-        } catch { /* skip */ }
-      }
-
-      // Back number on both backs
-      if (config.showNumber && config.number) {
-        const drawBackNumber2 = (cell: { x: number; y: number }, tc: string) => {
-          const cx = cell.x + CW / 2;
-          ctx.save();
-          ctx.font = `900 ${Math.round(CH * 0.22)}px 'Impact', 'Arial Black', sans-serif`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "top";
-          ctx.fillStyle = tc;
-          ctx.translate(cx, cell.y + CH * 0.51);
-          ctx.scale(1, 1.15);
-          ctx.fillText(config.number, 0, 0);
-          ctx.restore();
-        };
-        drawBackNumber2(cells[1], config.letterColor);
-        drawBackNumber2(cells[3], config.letterColorBack);
-      }
-
-      // Text elements
-      const fontMap2: Record<FontOption, string> = {
-        "bebas": "'Bebas Neue', 'Arial Black', sans-serif",
-        "franklin": "'Libre Franklin', 'Arial', sans-serif",
-        "baskerville": "'Libre Baskerville', 'Georgia', serif",
-        "open-sans": "'Open Sans', 'Arial', sans-serif",
-        "oswald": "'Oswald', 'Arial Black', sans-serif",
-      };
-      const drawTextElements2 = (cell: { x: number; y: number }, target: "front" | "back", row: "primary" | "secondary", tc: string) => {
-        for (const el of config.textElements) {
-          if (el.target !== target || !el.text) continue;
-          const match2 = el.placement === "ambos" || (el.placement === "lado1" && row === "primary") || (el.placement === "lado2" && row === "secondary");
-          if (!match2) continue;
-          const elFont = fontMap2[el.font] || fontMap2["bebas"];
-          const elWeight2 = el.bold ? "900" : "400";
-          ctx.font = `${elWeight2} ${Math.round(CH * 0.05 * el.size)}px ${elFont}`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = tc;
-          ctx.fillText(el.text, cell.x + CW * (el.x / 100), cell.y + CH * (el.y / 100));
-        }
-      };
-      drawTextElements2(cells[0], "front", "primary", config.letterColor);
-      drawTextElements2(cells[1], "back", "primary", config.letterColor);
-      drawTextElements2(cells[2], "front", "secondary", config.letterColorBack);
-      drawTextElements2(cells[3], "back", "secondary", config.letterColorBack);
-
-      // Labels
-      ctx.font = "bold 11px Arial, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.fillStyle = "#999";
-      ctx.fillText("LADO 1 - FRENTE", cells[0].x + CW / 2, cells[0].y + CH + 4);
-      ctx.fillText("LADO 1 - ESPALDA", cells[1].x + CW / 2, cells[1].y + CH + 4);
-      ctx.fillText("LADO 2 - FRENTE", cells[2].x + CW / 2, cells[2].y + CH + 4);
-      ctx.fillText("LADO 2 - ESPALDA", cells[3].x + CW / 2, cells[3].y + CH + 4);
-
-      // Descargar la imagen
-      const firstText2 = config.textElements.find(el => el.text)?.text || "equipo";
-      const fileName = `big-sportswear-${firstText2}.png`;
-      const canvasDataUrl = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.download = fileName;
-      link.href = canvasDataUrl;
-      link.click();
-
-      // Abrir WhatsApp con el texto (la imagen ya se descargó para que el usuario la adjunte manualmente)
-      const phone = "5491126237532";
-      const textsDescription = config.textElements.filter(el => el.text).map(el => el.text).join(", ") || "Sin texto";
-      const message = `Hola! Quisiera pedir este modelo!%0A%0A*Detalles:*%0A- Textos: ${textsDescription}%0A- Color Principal: ${config.color}%0A- Color Lado 2: ${config.secondaryColor}%0A%0ATe adjunto la imagen que acabo de descargar con el diseño.`;
-      const whatsappUrl = `https://wa.me/${phone}?text=${message}`;
-      
-      // Pequeño delay para asegurar que la descarga comience antes de redirigir
-      setTimeout(() => {
-        window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-      }, 500);
-
     } catch (err) {
+      // User cancelled share dialog — not an error
+      if (err instanceof Error && err.name === "AbortError") return;
       console.error("WhatsApp Order error:", err);
       alert("Hubo un error al preparar el pedido. Por favor intenta de nuevo.");
     } finally {
@@ -706,6 +439,7 @@ export default function JerseyCustomizer() {
                 }}
               >
                 <JerseyPreview
+                  ref={jerseyGridRef}
                   config={config}
                   className="w-full max-w-[520px]"
                   onTextMove={handleTextMove}

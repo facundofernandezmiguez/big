@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, forwardRef } from "react";
 import { JerseyConfig, TextElement, SponsorElement, FontOption, SketchType } from "./types";
 
 interface JerseyPreviewProps {
@@ -438,7 +438,7 @@ function useRecoloredPair(sketchType: SketchType, color: string, dorsoColor: str
 }
 
 // ─── Component ───
-export default function JerseyPreview({ config, className, onTextMove, onSponsorMove, selectedObjectId, selectedObjectType, onObjectSelect }: JerseyPreviewProps) {
+const JerseyPreview = forwardRef<HTMLDivElement, JerseyPreviewProps>(function JerseyPreview({ config, className, onTextMove, onSponsorMove, selectedObjectId, selectedObjectType, onObjectSelect }, ref) {
   const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number; containerRect: DOMRect; origTarget: "front" | "back"; origRow?: "primary" | "secondary"; moveCb: (id: string, x: number, y: number, target?: "front" | "back", row?: "primary" | "secondary") => void } | null>(null);
   const containerRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -670,10 +670,12 @@ export default function JerseyPreview({ config, className, onTextMove, onSponsor
 
   return (
     <div className={`select-none ${className ?? ""}`}>
-      <div className="grid grid-cols-2 gap-x-5 gap-y-6 overflow-visible">
+      <div ref={ref} className="grid grid-cols-2 gap-x-5 gap-y-6 overflow-visible">
         {renderRow(primary, "primary", "Lado 1 - Frente", "Lado 1 - Espalda", config.letterColor)}
         {renderRow(secondary, "secondary", "Lado 2 - Frente", "Lado 2 - Espalda", config.letterColorBack)}
       </div>
     </div>
   );
-}
+});
+
+export default JerseyPreview;
