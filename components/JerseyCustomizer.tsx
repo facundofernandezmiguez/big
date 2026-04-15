@@ -11,6 +11,19 @@ import { JerseyConfig, TextElement, SponsorElement, FontOption, SketchType } fro
 import { removeBackground } from "@imgly/background-removal";
 import html2canvas from "html2canvas";
 
+// Strip modern CSS color functions that html2canvas can't parse (Tailwind v4 uses oklab/oklch)
+function sanitizeCloneForCapture(clonedDoc: Document) {
+  clonedDoc.querySelectorAll('style').forEach(style => {
+    if (style.textContent) {
+      style.textContent = style.textContent
+        .replace(/oklch\([^)]*\)/gi, 'transparent')
+        .replace(/oklab\([^)]*\)/gi, 'transparent')
+        .replace(/lab\([^)]*\)/gi, 'transparent')
+        .replace(/lch\([^)]*\)/gi, 'transparent');
+    }
+  });
+}
+
 export default function JerseyCustomizer() {
   const [config, setConfig] = useState<JerseyConfig>({
     sketchType: "clasica",
@@ -335,6 +348,7 @@ export default function JerseyCustomizer() {
         backgroundColor: '#ffffff',
         scale: 3,
         useCORS: true,
+        onclone: (clonedDoc) => sanitizeCloneForCapture(clonedDoc),
       });
       const dataUrl = canvas.toDataURL('image/png');
 
@@ -372,6 +386,7 @@ export default function JerseyCustomizer() {
         backgroundColor: '#ffffff',
         scale: 3,
         useCORS: true,
+        onclone: (clonedDoc) => sanitizeCloneForCapture(clonedDoc),
       });
       const dataUrl = canvas.toDataURL('image/png');
 
