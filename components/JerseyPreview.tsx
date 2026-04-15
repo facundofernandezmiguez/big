@@ -439,6 +439,36 @@ function useRecoloredPair(sketchType: SketchType, color: string, dorsoColor: str
 
 // ─── Component ───
 const JerseyPreview = forwardRef<HTMLDivElement, JerseyPreviewProps>(function JerseyPreview({ config, className, onTextMove, onSponsorMove, selectedObjectId, selectedObjectType, onObjectSelect }, ref) {
+  const internalGridRef = useRef<HTMLDivElement>(null);
+  const [gridWidth, setGridWidth] = useState(520);
+
+  // Merge forwarded ref with internal ref
+  const mergedRef = useCallback((node: HTMLDivElement | null) => {
+    internalGridRef.current = node;
+    if (typeof ref === 'function') ref(node);
+    else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+  }, [ref]);
+
+  // Track grid width for container-relative font sizing
+  useEffect(() => {
+    const el = internalGridRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(entries => {
+      const w = entries[0].contentRect.width;
+      if (w > 0) setGridWidth(w);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Compute font sizes relative to grid width (not viewport)
+  // At 520px grid (desktop): textBase = min(19.2, max(8, 520*0.037)) = 19.2px
+  // At 350px grid (mobile):  textBase = min(19.2, max(8, 350*0.037)) = 12.95px
+  const textBaseFontSize = Math.min(19.2, Math.max(8, gridWidth * 0.037));
+  // At 520px grid: numberFont = min(88, max(32, 520*0.169)) = 87.9px
+  // At 350px grid: numberFont = min(88, max(32, 350*0.169)) = 59.2px
+  const numberFontSize = Math.min(88, Math.max(32, gridWidth * 0.169));
+
   const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number; containerRect: DOMRect; origTarget: "front" | "back"; origRow?: "primary" | "secondary"; moveCb: (id: string, x: number, y: number, target?: "front" | "back", row?: "primary" | "secondary") => void } | null>(null);
   const containerRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -526,7 +556,7 @@ const JerseyPreview = forwardRef<HTMLDivElement, JerseyPreviewProps>(function Je
               left: `${el.x}%`,
               top: `${el.y}%`,
               transform: "translate(-50%, -50%)",
-              fontSize: `calc(clamp(0.5rem, 2.2vw, 1.2rem) * ${el.size})`,
+              fontSize: `${textBaseFontSize * el.size}px`,
               color: textColor,
               fontFamily: FONT_FAMILY_MAP[el.font],
               whiteSpace: "nowrap",
@@ -650,7 +680,7 @@ const JerseyPreview = forwardRef<HTMLDivElement, JerseyPreviewProps>(function Je
             className="absolute inset-x-0 text-center leading-none pointer-events-none"
             style={{
               top: "51%",
-              fontSize: "clamp(2rem, 12vw, 5.5rem)",
+              fontSize: `${numberFontSize}px`,
               color: textColor,
               fontFamily: "'Impact', 'Arial Black', sans-serif",
               transform: "scaleY(1.15)",
@@ -670,7 +700,7 @@ const JerseyPreview = forwardRef<HTMLDivElement, JerseyPreviewProps>(function Je
 
   return (
     <div className={`select-none ${className ?? ""}`}>
-      <div ref={ref} className="grid grid-cols-2 gap-x-5 gap-y-6 overflow-visible">
+      <div ref={mergedRef} className="grid grid-cols-2 gap-x-5 gap-y-6 overflow-visible">
         {renderRow(primary, "primary", "Lado 1 - Frente", "Lado 1 - Espalda", config.letterColor)}
         {renderRow(secondary, "secondary", "Lado 2 - Frente", "Lado 2 - Espalda", config.letterColorBack)}
       </div>

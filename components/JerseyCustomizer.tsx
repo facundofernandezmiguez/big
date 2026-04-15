@@ -320,7 +320,14 @@ export default function JerseyCustomizer() {
     if (!gridEl) return;
 
     setSelectedObject(null);
-    await new Promise(r => setTimeout(r, 150));
+
+    // Force desktop-like width so font sizes (grid-relative) are consistent
+    const origWidth = gridEl.style.width;
+    const origMaxWidth = gridEl.style.maxWidth;
+    gridEl.style.width = '520px';
+    gridEl.style.maxWidth = '520px';
+    // Wait for ResizeObserver → state update → React re-render
+    await new Promise(r => setTimeout(r, 300));
 
     try {
       const dataUrl = await toPng(gridEl, {
@@ -335,6 +342,9 @@ export default function JerseyCustomizer() {
       link.click();
     } catch (err) {
       console.error("Download error:", err);
+    } finally {
+      gridEl.style.width = origWidth;
+      gridEl.style.maxWidth = origMaxWidth;
     }
   }, [config.textElements]);
 
@@ -344,7 +354,14 @@ export default function JerseyCustomizer() {
     if (!gridEl) { setIsGeneratingImage(false); return; }
 
     setSelectedObject(null);
-    await new Promise(r => setTimeout(r, 150));
+
+    // Force desktop-like width so font sizes (grid-relative) are consistent
+    const origWidth = gridEl.style.width;
+    const origMaxWidth = gridEl.style.maxWidth;
+    gridEl.style.width = '520px';
+    gridEl.style.maxWidth = '520px';
+    // Wait for ResizeObserver → state update → React re-render
+    await new Promise(r => setTimeout(r, 300));
 
     try {
       const dataUrl = await toPng(gridEl, {
@@ -387,6 +404,8 @@ export default function JerseyCustomizer() {
       console.error("WhatsApp Order error:", err);
       alert("Hubo un error al preparar el pedido. Por favor intenta de nuevo.");
     } finally {
+      gridEl.style.width = origWidth;
+      gridEl.style.maxWidth = origMaxWidth;
       setIsGeneratingImage(false);
     }
   }, [config]);
