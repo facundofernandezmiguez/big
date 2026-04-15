@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Bebas_Neue, Libre_Franklin, Libre_Baskerville, Open_Sans, Oswald } from "next/font/google";
+import { Geist, Geist_Mono, Bebas_Neue, Libre_Franklin, Libre_Baskerville, Open_Sans, Oswald, Anton } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -39,6 +39,12 @@ const oswald = Oswald({
   subsets: ["latin"],
 });
 
+const anton = Anton({
+  variable: "--font-anton",
+  subsets: ["latin"],
+  weight: "400",
+});
+
 export const metadata: Metadata = {
   title: "BIG Sportswear — Personalizá tu remera",
   description: "Personalizá tu top deportivo con el color, escudo y nombre de tu equipo.",
@@ -55,7 +61,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${bebasNeue.variable} ${libreFranklin.variable} ${libreBaskerville.variable} ${openSans.variable} ${oswald.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${bebasNeue.variable} ${libreFranklin.variable} ${libreBaskerville.variable} ${openSans.variable} ${oswald.variable} ${anton.variable} antialiased`}
       >
         {children}
       </body>

@@ -14,11 +14,11 @@ interface JerseyPreviewProps {
 }
 
 const FONT_FAMILY_MAP: Record<FontOption, string> = {
-  "bebas": "'Bebas Neue', 'Arial Black', sans-serif",
-  "franklin": "'Libre Franklin', 'Arial', sans-serif",
-  "baskerville": "'Libre Baskerville', 'Georgia', serif",
-  "open-sans": "'Open Sans', 'Arial', sans-serif",
-  "oswald": "'Oswald', 'Arial Black', sans-serif",
+  "bebas": "var(--font-bebas-neue), 'Arial Black', sans-serif",
+  "franklin": "var(--font-libre-franklin), 'Arial', sans-serif",
+  "baskerville": "var(--font-libre-baskerville), 'Georgia', serif",
+  "open-sans": "var(--font-open-sans), 'Arial', sans-serif",
+  "oswald": "var(--font-oswald), 'Arial Black', sans-serif",
 };
 
 // ─── Helpers ───
@@ -682,7 +682,7 @@ const JerseyPreview = forwardRef<HTMLDivElement, JerseyPreviewProps>(function Je
               top: "51%",
               fontSize: `${numberFontSize}px`,
               color: textColor,
-              fontFamily: "'Impact', 'Arial Black', sans-serif",
+              fontFamily: "var(--font-anton), 'Impact', 'Arial Black', sans-serif",
               transform: "scaleY(1.15)",
             }}
           >
