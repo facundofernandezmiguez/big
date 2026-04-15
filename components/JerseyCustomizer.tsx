@@ -9,20 +9,7 @@ import { Upload, Download, Loader2, X, Plus, GripVertical } from "lucide-react";
 import JerseyPreview from "./JerseyPreview";
 import { JerseyConfig, TextElement, SponsorElement, FontOption, SketchType } from "./types";
 import { removeBackground } from "@imgly/background-removal";
-import html2canvas from "html2canvas";
-
-// Strip modern CSS color functions that html2canvas can't parse (Tailwind v4 uses oklab/oklch)
-function sanitizeCloneForCapture(clonedDoc: Document) {
-  clonedDoc.querySelectorAll('style').forEach(style => {
-    if (style.textContent) {
-      style.textContent = style.textContent
-        .replace(/oklch\([^)]*\)/gi, 'transparent')
-        .replace(/oklab\([^)]*\)/gi, 'transparent')
-        .replace(/lab\([^)]*\)/gi, 'transparent')
-        .replace(/lch\([^)]*\)/gi, 'transparent');
-    }
-  });
-}
+import { toPng } from "html-to-image";
 
 export default function JerseyCustomizer() {
   const [config, setConfig] = useState<JerseyConfig>({
@@ -344,13 +331,12 @@ export default function JerseyCustomizer() {
 
     try {
       await document.fonts.ready;
-      const canvas = await html2canvas(gridEl, {
+      // Call toPng twice: first call warms up font embedding cache
+      await toPng(gridEl, { backgroundColor: '#ffffff', pixelRatio: 1 }).catch(() => {});
+      const dataUrl = await toPng(gridEl, {
         backgroundColor: '#ffffff',
-        scale: 3,
-        useCORS: true,
-        onclone: (clonedDoc) => sanitizeCloneForCapture(clonedDoc),
+        pixelRatio: 3,
       });
-      const dataUrl = canvas.toDataURL('image/png');
 
       const firstText = config.textElements.find(el => el.text)?.text || "equipo";
       const link = document.createElement("a");
@@ -382,13 +368,12 @@ export default function JerseyCustomizer() {
 
     try {
       await document.fonts.ready;
-      const canvas = await html2canvas(gridEl, {
+      // Call toPng twice: first call warms up font embedding cache
+      await toPng(gridEl, { backgroundColor: '#ffffff', pixelRatio: 1 }).catch(() => {});
+      const dataUrl = await toPng(gridEl, {
         backgroundColor: '#ffffff',
-        scale: 3,
-        useCORS: true,
-        onclone: (clonedDoc) => sanitizeCloneForCapture(clonedDoc),
+        pixelRatio: 3,
       });
-      const dataUrl = canvas.toDataURL('image/png');
 
       const firstText = config.textElements.find(el => el.text)?.text || "equipo";
       const fileName = `big-sportswear-${firstText}.png`;
