@@ -60,10 +60,12 @@ export async function renderConfigToDataUrl(config: JerseyConfig, pixelRatio = 3
     loadImg(secondaryBackUrl),
   ]);
 
-  let shieldImg: HTMLImageElement | null = null;
-  if (config.shieldUrl && config.showShield) {
-    shieldImg = await loadImg(config.shieldUrl).catch(() => null);
-  }
+  const shieldImgs = new Map<string, HTMLImageElement>();
+  await Promise.all(
+    config.shields.filter(s => s.imageUrl && s.showShield).map(async (s) => {
+      try { shieldImgs.set(s.id, await loadImg(s.imageUrl)); } catch { /* skip */ }
+    })
+  );
 
   const sponsorImgs = new Map<string, HTMLImageElement>();
   await Promise.all(
@@ -169,28 +171,31 @@ export async function renderConfigToDataUrl(config: JerseyConfig, pixelRatio = 3
       ctx.restore();
     }
 
-    // ── Shield (primary-front only) ──
-    if (p.row === "primary" && p.target === "front" && shieldImg) {
-      const leftPct = config.shieldPosition === "left" ? 0.22 : config.shieldPosition === "center" ? 0.40 : 0.58;
-      const boxX = p.x + COL_W * leftPct;
-      const boxY = p.y + CONTAINER_H * 0.26;
-      const boxW = COL_W * 0.22;
-      const boxH = CONTAINER_H * 0.22;
-      const cx = boxX + boxW / 2;
-      const cy = boxY + boxH / 2;
-      const sw = boxW * config.shieldSize;
-      const sh = boxH * config.shieldSize;
-      // object-contain: fit image preserving aspect ratio
-      const iAspect = shieldImg.naturalWidth / shieldImg.naturalHeight;
-      const bAspect = sw / sh;
-      let dw: number, dh: number;
-      if (iAspect > bAspect) { dw = sw; dh = sw / iAspect; }
-      else { dh = sh; dw = sh * iAspect; }
-      ctx.drawImage(shieldImg, cx - dw / 2, cy - dh / 2, dw, dh);
+    // ── Shields (front panels, filtered by placement) ──
+    if (p.target === "front") {
+      for (const sh of config.shields.filter(s => s.imageUrl && s.showShield && (s.placement === "ambos" || (s.placement === "lado1" && p.row === "primary") || (s.placement === "lado2" && p.row === "secondary")))) {
+        const sImg = shieldImgs.get(sh.id);
+        if (!sImg) continue;
+        const leftPct = sh.shieldPosition === "left" ? 0.22 : sh.shieldPosition === "center" ? 0.40 : 0.58;
+        const boxX = p.x + COL_W * leftPct;
+        const boxY = p.y + CONTAINER_H * 0.26;
+        const boxW = COL_W * 0.22;
+        const boxH = CONTAINER_H * 0.22;
+        const cx = boxX + boxW / 2;
+        const cy = boxY + boxH / 2;
+        const sw = boxW * sh.shieldSize;
+        const shH = boxH * sh.shieldSize;
+        const iAspect = sImg.naturalWidth / sImg.naturalHeight;
+        const bAspect = sw / shH;
+        let dw: number, dh: number;
+        if (iAspect > bAspect) { dw = sw; dh = sw / iAspect; }
+        else { dh = shH; dw = shH * iAspect; }
+        ctx.drawImage(sImg, cx - dw / 2, cy - dh / 2, dw, dh);
+      }
     }
 
     // ── Sponsors ──
-    for (const sp of config.sponsors.filter(s => s.target === p.target && s.imageUrl)) {
+    for (const sp of config.sponsors.filter(s => s.target === p.target && s.imageUrl && (s.placement === "ambos" || (s.placement === "lado1" && p.row === "primary") || (s.placement === "lado2" && p.row === "secondary")))) {
       const spImg = sponsorImgs.get(sp.id);
       if (!spImg) continue;
       const spW = COL_W * 0.15 * sp.size;

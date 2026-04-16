@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Upload, Download, Loader2, X, Plus, GripVertical } from "lucide-react";
 import JerseyPreview from "./JerseyPreview";
-import { JerseyConfig, TextElement, SponsorElement, FontOption, SketchType } from "./types";
+import { JerseyConfig, TextElement, SponsorElement, ShieldElement, FontOption, SketchType } from "./types";
 import { removeBackground } from "@imgly/background-removal";
 import { renderConfigToDataUrl } from "./canvasDownload";
 
@@ -22,10 +22,7 @@ export default function JerseyCustomizer() {
     gradientSecondaryColor: "#cccccc",
     letterColor: "#f5f5f5",
     letterColorBack: "#111111",
-    shieldUrl: null,
-    showShield: true,
-    shieldPosition: "right",
-    shieldSize: 1,
+    shields: [],
     number: "10",
     showNumber: true,
     textElements: [
@@ -110,13 +107,13 @@ export default function JerseyCustomizer() {
     }));
   };
 
-  const [shieldFileName, setShieldFileName] = useState<string | null>(null);
-  const [isRemovingBg, setIsRemovingBg] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [removeBgError, setRemoveBgError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const jerseyGridRef = useRef<HTMLDivElement>(null);
+
+  const nextShieldId = useRef(1);
+  const [shieldProcessingId, setShieldProcessingId] = useState<string | null>(null);
+  const shieldFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const handleColorSelect = (hex: string) => {
     setConfig((prev) => ({ ...prev, color: hex }));
@@ -130,46 +127,59 @@ export default function JerseyCustomizer() {
     setConfig((prev) => ({ ...prev, letterColor: hex }));
   };
 
-  const handleShieldUpload = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      setRemoveBgError(null);
-      setShieldFileName(file.name);
+  const handleAddShield = () => {
+    const id = `sh-${nextShieldId.current++}`;
+    setTimeout(() => shieldFileRefs.current[id]?.click(), 50);
+    const newShield: ShieldElement = {
+      id,
+      imageUrl: "",
+      fileName: "",
+      showShield: true,
+      shieldPosition: "right",
+      shieldSize: 1,
+      placement: "lado1",
+    };
+    setConfig((prev) => ({ ...prev, shields: [...prev.shields, newShield] }));
+  };
 
+  const handleShieldUpload = useCallback(async (shieldId: string, file: File) => {
+    setShieldProcessingId(shieldId);
+    try {
+      let url: string;
       if (file.type === "image/png") {
-        console.log("[Shield Upload] PNG file detected, skipping background removal");
-        setConfig((prev) => ({ ...prev, shieldUrl: URL.createObjectURL(file) }));
-        return;
+        url = URL.createObjectURL(file);
+      } else {
+        try {
+          const blob = await removeBackground(file);
+          url = URL.createObjectURL(blob);
+        } catch {
+          url = URL.createObjectURL(file);
+        }
       }
+      setConfig((prev) => ({
+        ...prev,
+        shields: prev.shields.map((s) =>
+          s.id === shieldId ? { ...s, imageUrl: url, fileName: file.name } : s
+        ),
+      }));
+    } finally {
+      setShieldProcessingId(null);
+    }
+  }, []);
 
-      console.log("[Shield Upload] Starting background removal for:", file.name, "Size:", (file.size / 1024).toFixed(1), "KB");
-      setIsRemovingBg(true);
-      
-      // Add timeout to detect hangs
-      const timeoutId = setTimeout(() => {
-        console.warn("[Shield Upload] Background removal is taking longer than expected (>30s). Model may still be downloading...");
-      }, 30000);
-      
-      try {
-        console.log("[Shield Upload] Calling removeBackground()...");
-        const imageBlob = await removeBackground(file);
-        clearTimeout(timeoutId);
-        console.log("[Shield Upload] Background removal complete. Blob size:", (imageBlob.size / 1024).toFixed(1), "KB");
-        const url = URL.createObjectURL(imageBlob);
-        setConfig((prev) => ({ ...prev, shieldUrl: url }));
-      } catch (err: unknown) {
-        clearTimeout(timeoutId);
-        const message = err instanceof Error ? err.message : "Error desconocido";
-        console.error("[Shield Upload] Error:", message, err);
-        setRemoveBgError(message);
-        setConfig((prev) => ({ ...prev, shieldUrl: URL.createObjectURL(file) }));
-      } finally {
-        setIsRemovingBg(false);
-      }
-    },
-    []
-  );
+  const handleUpdateShield = (id: string, updates: Partial<ShieldElement>) => {
+    setConfig((prev) => ({
+      ...prev,
+      shields: prev.shields.map((s) => (s.id === id ? { ...s, ...updates } : s)),
+    }));
+  };
+
+  const handleRemoveShield = (id: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      shields: prev.shields.filter((s) => s.id !== id),
+    }));
+  };
 
   // ─── Mobile gestures: pan+zoom preview & pinch-resize selected object ───
   const [viewScale, setViewScale] = useState(1);
@@ -208,7 +218,7 @@ export default function JerseyCustomizer() {
       const sel = selectedObject;
       let startScale: number;
       if (sel) {
-        if (sel.type === "shield") startScale = config.shieldSize;
+        if (sel.type === "shield") startScale = config.shields.find((s) => s.id === sel.id)?.shieldSize ?? 1;
         else if (sel.type === "text") startScale = config.textElements.find((t) => t.id === sel.id)?.size ?? 1;
         else startScale = config.sponsors.find((s) => s.id === sel.id)?.size ?? 1;
         gestureRef.current = { startDist: dist, startScale, startMidX: mid.x, startMidY: mid.y, startViewX: viewX, startViewY: viewY, mode: "resize" };
@@ -230,7 +240,7 @@ export default function JerseyCustomizer() {
         const sel = selectedObject;
         if (!sel) return;
         if (sel.type === "shield") {
-          setConfig((prev) => ({ ...prev, shieldSize: newSize }));
+          setConfig((prev) => ({ ...prev, shields: prev.shields.map((s) => s.id === sel.id ? { ...s, shieldSize: newSize } : s) }));
         } else if (sel.type === "text") {
           setConfig((prev) => ({
             ...prev,
@@ -262,14 +272,7 @@ export default function JerseyCustomizer() {
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
     };
-  }, [selectedObject, viewScale, viewX, viewY, config.shieldSize, config.textElements, config.sponsors]);
-
-  const handleRemoveShield = () => {
-    setConfig((prev) => ({ ...prev, shieldUrl: null }));
-    setShieldFileName(null);
-    setRemoveBgError(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
+  }, [selectedObject, viewScale, viewX, viewY, config.shields, config.textElements, config.sponsors]);
 
   const [sponsorProcessingId, setSponsorProcessingId] = useState<string | null>(null);
   const sponsorFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -286,6 +289,7 @@ export default function JerseyCustomizer() {
       y: 45,
       size: 1,
       target: "front",
+      placement: "lado1",
     };
     setConfig((prev) => ({ ...prev, sponsors: [...prev.sponsors, newSponsor] }));
   };
@@ -342,7 +346,7 @@ export default function JerseyCustomizer() {
       const blob = await res.blob();
       const file = new File([blob], fileName, { type: "image/png" });
 
-      const message = `Hola! Quiero cotizar esta musculosa`;
+      const message = `Hola! Quiero cotizar esta musculosa.`;
       const phone = "5491126237532";
 
       // Download image so the user can attach it
@@ -447,133 +451,156 @@ export default function JerseyCustomizer() {
           {/* Controls */}
           <div className="flex flex-col gap-6 sm:gap-7 w-full">
 
-            {/* Step 1 — Shield */}
+            {/* Step 1 — Shields */}
             <div>
               <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase mb-3">
                 01 — Escudo del club
               </h2>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleShieldUpload}
-                className="hidden"
-                id="shield-upload"
-              />
-              {!config.shieldUrl ? (
-                <label
-                  htmlFor="shield-upload"
-                  className="flex items-center justify-center gap-2 border border-dashed border-black/20 p-3 cursor-pointer hover:border-black/50 hover:bg-black/[0.015] transition-all"
-                >
-                  {isRemovingBg ? (
-                    <>
-                      <Loader2 className="w-5 h-5 text-black/40 animate-spin" />
-                      <p className="text-[11px] text-black/45 font-medium">Procesando...</p>
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-5 h-5 text-black/25" />
-                      <p className="text-xs font-semibold text-black/60 tracking-wide">
-                        Subir escudo del club
-                      </p>
-                    </>
-                  )}
-                </label>
-              ) : (
-                <div className="flex items-center gap-3 border border-black/10 p-3 bg-black/[0.015]">
-                  <div className="w-10 h-10 bg-white border border-black/8 flex items-center justify-center flex-shrink-0">
-                    <img
-                      src={config.shieldUrl}
-                      alt="Escudo"
-                      className="w-8 h-8 object-contain"
+              <div className="flex flex-col gap-3">
+                {config.shields.map((sh) => (
+                  <div key={sh.id} className="flex flex-col gap-2 bg-[#f7f7f7] border border-black/8 p-4 sm:p-3">
+                    <input
+                      ref={(node) => { shieldFileRefs.current[sh.id] = node; }}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleShieldUpload(sh.id, file);
+                      }}
+                      className="hidden"
                     />
-                  </div>
-                  <p className="text-xs font-semibold truncate text-black/70 flex-1">
-                    {shieldFileName ?? "Escudo cargado"}
-                  </p>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-[10px] text-black/40 hover:text-black/70 underline flex-shrink-0"
-                  >
-                    Cambiar
-                  </button>
-                  <button
-                    onClick={handleRemoveShield}
-                    className="text-black/25 hover:text-red-500 transition-colors p-1 flex-shrink-0"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-              {removeBgError && (
-                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 mt-2">
-                  ⚠ {removeBgError}. Se usó la imagen original.
-                </p>
-              )}
-
-              {/* Shield Options - only visible when shield is loaded */}
-              {config.shieldUrl && (
-                <div className="mt-4 space-y-3">
-                  {/* Show/Hide Shield */}
-                  <div className="flex items-center justify-between bg-[#f7f7f7] border border-black/8 p-3">
-                    <span className="text-[11px] font-semibold tracking-widest uppercase text-black/70">
-                      Mostrar escudo
-                    </span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={config.showShield}
-                        onChange={(e) => setConfig((prev) => ({ ...prev, showShield: e.target.checked }))}
-                        className="sr-only peer"
-                      />
-                      <div className="w-10 h-6 bg-red-500 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-                    </label>
-                  </div>
-
-                  {/* Shield Position */}
-                  {config.showShield && (
-                    <div className="bg-[#f7f7f7] border border-black/8 p-4 sm:p-3">
-                      <span className="text-[12px] sm:text-[11px] font-semibold tracking-widest uppercase text-black/70 block mb-3 sm:mb-2">
-                        Posición del escudo
-                      </span>
-                      <div className="flex gap-2">
-                        {[
-                          { value: "left", label: "Izquierda" },
-                          { value: "center", label: "Centro" },
-                          { value: "right", label: "Derecha" },
-                        ].map((pos) => (
+                    {!sh.imageUrl ? (
+                      <label
+                        onClick={() => shieldFileRefs.current[sh.id]?.click()}
+                        className="flex items-center justify-center gap-2 border border-dashed border-black/20 p-3 cursor-pointer hover:border-black/50 hover:bg-black/[0.015] transition-all"
+                      >
+                        {shieldProcessingId === sh.id ? (
+                          <>
+                            <Loader2 className="w-5 h-5 text-black/40 animate-spin" />
+                            <p className="text-[11px] text-black/45 font-medium">Procesando...</p>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-5 h-5 text-black/25" />
+                            <p className="text-xs font-semibold text-black/60 tracking-wide">Subir escudo</p>
+                          </>
+                        )}
+                      </label>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white border border-black/8 flex items-center justify-center flex-shrink-0">
+                            <img src={sh.imageUrl} alt="Escudo" className="w-8 h-8 object-contain" />
+                          </div>
+                          <p className="text-xs font-semibold truncate text-black/70 flex-1">{sh.fileName}</p>
                           <button
-                            key={pos.value}
-                            onClick={() => setConfig((prev) => ({ ...prev, shieldPosition: pos.value as "left" | "center" | "right" }))}
-                            className={`flex-1 py-3 sm:py-2 px-2 text-[12px] sm:text-[11px] font-medium uppercase tracking-wide border transition-colors ${
-                              config.shieldPosition === pos.value
-                                ? "bg-black text-white border-black"
-                                : "bg-white text-black/60 border-black/20 hover:border-black/40"
-                            }`}
+                            onClick={() => shieldFileRefs.current[sh.id]?.click()}
+                            className="text-[10px] text-black/40 hover:text-black/70 underline flex-shrink-0"
                           >
-                            {pos.label}
+                            Cambiar
                           </button>
-                        ))}
-                      </div>
+                          <button
+                            onClick={() => handleRemoveShield(sh.id)}
+                            className="text-black/25 hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
 
-                      {/* Shield Size */}
-                      <div className="mt-3 sm:mt-2 flex items-center gap-2">
-                        <span className="text-[11px] sm:text-[10px] text-black/50 whitespace-nowrap">Tamaño</span>
-                        <input
-                          type="range"
-                          min="0.5"
-                          max="2.5"
-                          step="0.1"
-                          value={config.shieldSize}
-                          onChange={(e) => setConfig((prev) => ({ ...prev, shieldSize: parseFloat(e.target.value) }))}
-                          className="flex-1 h-1 accent-black cursor-pointer"
-                        />
-                        <span className="text-[10px] text-black/40 w-8 text-right">{config.shieldSize.toFixed(1)}x</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                        {/* Show/Hide Shield */}
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-[11px] font-semibold tracking-widest uppercase text-black/70">
+                            Mostrar
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={sh.showShield}
+                              onChange={(e) => handleUpdateShield(sh.id, { showShield: e.target.checked })}
+                              className="sr-only peer"
+                            />
+                            <div className="w-10 h-6 bg-red-500 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                          </label>
+                        </div>
+
+                        {sh.showShield && (
+                          <>
+                            {/* Shield Position */}
+                            <div className="mt-1">
+                              <span className="text-[10px] text-black/40 block mb-1">Posición</span>
+                              <div className="flex gap-2">
+                                {[
+                                  { value: "left", label: "Izquierda" },
+                                  { value: "center", label: "Centro" },
+                                  { value: "right", label: "Derecha" },
+                                ].map((pos) => (
+                                  <button
+                                    key={pos.value}
+                                    onClick={() => handleUpdateShield(sh.id, { shieldPosition: pos.value as "left" | "center" | "right" })}
+                                    className={`flex-1 py-2 px-1 text-[10px] font-medium uppercase tracking-wide border transition-colors ${
+                                      sh.shieldPosition === pos.value
+                                        ? "bg-black text-white border-black"
+                                        : "bg-white text-black/60 border-black/20 hover:border-black/40"
+                                    }`}
+                                  >
+                                    {pos.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Shield Size */}
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] text-black/40 whitespace-nowrap">Tamaño</span>
+                              <input
+                                type="range"
+                                min="0.5"
+                                max="2.5"
+                                step="0.1"
+                                value={sh.shieldSize}
+                                onChange={(e) => handleUpdateShield(sh.id, { shieldSize: parseFloat(e.target.value) })}
+                                className="flex-1 h-1 accent-black cursor-pointer"
+                              />
+                              <span className="text-[10px] text-black/40 w-8 text-right">{sh.shieldSize.toFixed(1)}x</span>
+                            </div>
+
+                            {/* Placement selector */}
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] text-black/40 whitespace-nowrap">Ubicación</span>
+                              <div className="flex gap-1 flex-1">
+                                {([
+                                  { value: "lado1", label: "Lado 1" },
+                                  { value: "lado2", label: "Lado 2" },
+                                  { value: "ambos", label: "Ambos lados" },
+                                ] as const).map((opt) => (
+                                  <button
+                                    key={opt.value}
+                                    onClick={() => handleUpdateShield(sh.id, { placement: opt.value })}
+                                    className={`flex-1 py-1.5 px-1 text-[10px] font-medium uppercase tracking-wide border transition-colors ${
+                                      sh.placement === opt.value
+                                        ? "bg-black text-white border-black"
+                                        : "bg-white text-black/60 border-black/20 hover:border-black/40"
+                                    }`}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
+                <button
+                  onClick={handleAddShield}
+                  className="flex items-center justify-center gap-2 border border-dashed border-black/20 p-3 text-[11px] font-semibold tracking-widest uppercase text-black/50 hover:border-black/40 hover:text-black/70 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Agregar escudo
+                </button>
+              </div>
             </div>
 
             <Separator className="bg-black/8" />
@@ -994,6 +1021,29 @@ export default function JerseyCustomizer() {
                             className="flex-1 h-1 accent-black cursor-pointer"
                           />
                           <span className="text-[10px] text-black/40 w-8 text-right">{sp.size.toFixed(1)}x</span>
+                        </div>
+                        {/* Placement selector */}
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] text-black/40 whitespace-nowrap">Ubicación</span>
+                          <div className="flex gap-1 flex-1">
+                            {([
+                              { value: "lado1", label: "Lado 1" },
+                              { value: "lado2", label: "Lado 2" },
+                              { value: "ambos", label: "Ambos lados" },
+                            ] as const).map((opt) => (
+                              <button
+                                key={opt.value}
+                                onClick={() => handleUpdateSponsor(sp.id, { placement: opt.value })}
+                                className={`flex-1 py-1.5 px-1 text-[10px] font-medium uppercase tracking-wide border transition-colors ${
+                                  sp.placement === opt.value
+                                    ? "bg-black text-white border-black"
+                                    : "bg-white text-black/60 border-black/20 hover:border-black/40"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                         <p className="text-[10px] text-black/30 flex items-center gap-1">
                           <GripVertical className="w-3 h-3" />

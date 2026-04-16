@@ -578,9 +578,9 @@ const JerseyPreview = forwardRef<HTMLDivElement, JerseyPreviewProps>(function Je
       });
   };
 
-  const renderSponsorElements = (target: "front" | "back", containerKey: string) => {
+  const renderSponsorElements = (target: "front" | "back", row: "primary" | "secondary", containerKey: string) => {
     return config.sponsors
-      .filter((sp) => sp.target === target && sp.imageUrl)
+      .filter((sp) => sp.target === target && sp.imageUrl && (sp.placement === "ambos" || (sp.placement === "lado1" && row === "primary") || (sp.placement === "lado2" && row === "secondary")))
       .map((sp) => {
         const isSelected = selectedObjectId === sp.id && selectedObjectType === "sponsor";
         return (
@@ -635,35 +635,41 @@ const JerseyPreview = forwardRef<HTMLDivElement, JerseyPreviewProps>(function Je
           // eslint-disable-next-line @next/next/no-img-element
           <img src={pair.frontUrl} alt={labelFront} className="w-full h-auto" draggable={false} style={imgStyle} />
         ) : placeholder}
-        {row === "primary" && config.shieldUrl && config.showShield && (
-          <div
-            className="absolute cursor-pointer"
-            style={{
-              left: config.shieldPosition === "left" ? "22%" : config.shieldPosition === "center" ? "40%" : "58%",
-              top: "26%",
-              width: "22%",
-              height: "22%",
-              transform: `scale(${config.shieldSize})`,
-              transformOrigin: "center",
-              zIndex: 10,
-              outline: selectedObjectId === "shield" && selectedObjectType === "shield" ? "2px dashed rgba(59,130,246,0.8)" : "none",
-              outlineOffset: "4px",
-              borderRadius: "2px",
-            }}
-            onClick={(e) => { e.stopPropagation(); if (onObjectSelect) onObjectSelect("shield", "shield"); }}
-            onTouchStart={(e) => { e.stopPropagation(); if (onObjectSelect) onObjectSelect("shield", "shield"); }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={config.shieldUrl}
-              alt="Escudo"
-              className="w-full h-full object-contain pointer-events-none"
-              draggable={false}
-            />
-          </div>
-        )}
+        {config.shields
+          .filter((sh) => sh.imageUrl && sh.showShield && (sh.placement === "ambos" || (sh.placement === "lado1" && row === "primary") || (sh.placement === "lado2" && row === "secondary")))
+          .map((sh) => {
+            const isSelected = selectedObjectId === sh.id && selectedObjectType === "shield";
+            return (
+              <div
+                key={sh.id}
+                className="absolute cursor-pointer"
+                style={{
+                  left: sh.shieldPosition === "left" ? "22%" : sh.shieldPosition === "center" ? "40%" : "58%",
+                  top: "26%",
+                  width: "22%",
+                  height: "22%",
+                  transform: `scale(${sh.shieldSize})`,
+                  transformOrigin: "center",
+                  zIndex: 10,
+                  outline: isSelected ? "2px dashed rgba(59,130,246,0.8)" : "none",
+                  outlineOffset: "4px",
+                  borderRadius: "2px",
+                }}
+                onClick={(e) => { e.stopPropagation(); if (onObjectSelect) onObjectSelect(sh.id, "shield"); }}
+                onTouchStart={(e) => { e.stopPropagation(); if (onObjectSelect) onObjectSelect(sh.id, "shield"); }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={sh.imageUrl}
+                  alt="Escudo"
+                  className="w-full h-full object-contain pointer-events-none"
+                  draggable={false}
+                />
+              </div>
+            );
+          })}
         {renderTextElements("front", row, `${row}-front`, textColor)}
-        {renderSponsorElements("front", `${row}-front`)}
+        {renderSponsorElements("front", row, `${row}-front`)}
         <span className="mt-1 text-[10px] font-bold tracking-[0.15em] uppercase text-black/40">
           {labelFront}
         </span>
@@ -690,7 +696,7 @@ const JerseyPreview = forwardRef<HTMLDivElement, JerseyPreviewProps>(function Je
           </div>
         )}
         {renderTextElements("back", row, `${row}-back`, textColor)}
-        {renderSponsorElements("back", `${row}-back`)}
+        {renderSponsorElements("back", row, `${row}-back`)}
         <span className="mt-1 text-[10px] font-bold tracking-[0.15em] uppercase text-black/40">
           {labelBack}
         </span>

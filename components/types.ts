@@ -15,6 +15,16 @@ export interface TextElement {
   placement: "lado1" | "lado2" | "ambos"; // lado1=primary row, lado2=secondary row, ambos=both
 }
 
+export interface ShieldElement {
+  id: string;
+  imageUrl: string;
+  fileName: string;
+  showShield: boolean;
+  shieldPosition: "center" | "left" | "right";
+  shieldSize: number; // scale factor, 1 = default (~22% of jersey width)
+  placement: "lado1" | "lado2" | "ambos";
+}
+
 export interface SponsorElement {
   id: string;
   imageUrl: string;
@@ -23,6 +33,7 @@ export interface SponsorElement {
   y: number;  // % from top (0-100)
   size: number; // scale factor, 1 = default (~15% of jersey width)
   target: "front" | "back";
+  placement: "lado1" | "lado2" | "ambos";
 }
 
 export interface JerseyConfig {
@@ -35,10 +46,7 @@ export interface JerseyConfig {
   gradientSecondaryColor: string;
   letterColor: string;
   letterColorBack: string;
-  shieldUrl: string | null;
-  showShield: boolean;
-  shieldPosition: "center" | "left" | "right";
-  shieldSize: number; // scale factor, 1 = default (~22% of jersey width)
+  shields: ShieldElement[];
   number: string;
   showNumber: boolean;
   textElements: TextElement[];
