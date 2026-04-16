@@ -343,26 +343,19 @@ export default function JerseyCustomizer() {
       const file = new File([blob], fileName, { type: "image/png" });
 
       const message = `Hola! Quiero cotizar esta musculosa`;
+      const phone = "5491126237532";
 
-      // Try Web Share API with file (works on mobile → shares image directly to WhatsApp)
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          text: message,
-          files: [file],
-        });
-      } else {
-        // Fallback: download image + open WhatsApp with text
-        const link = document.createElement("a");
-        link.download = fileName;
-        link.href = dataUrl;
-        link.click();
+      // Download image so the user can attach it
+      const link = document.createElement("a");
+      link.download = fileName;
+      link.href = dataUrl;
+      link.click();
 
-        const phone = "5491126237532";
-        const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message + "\n\nTe adjunto la imagen con el diseño.")}`;
-        setTimeout(() => {
-          window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-        }, 500);
-      }
+      // Open WhatsApp conversation directly with the number and message
+      const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message + "\n\nTe adjunto la imagen con el diseño.")}`;
+      setTimeout(() => {
+        window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      }, 500);
     } catch (err) {
       // User cancelled share dialog — not an error
       if (err instanceof Error && err.name === "AbortError") return;
