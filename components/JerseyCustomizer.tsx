@@ -342,7 +342,7 @@ export default function JerseyCustomizer() {
       const blob = await res.blob();
       const file = new File([blob], fileName, { type: "image/png" });
 
-      const message = `Hola! Quisiera pedir este modelo!`;
+      const message = `Hola! Quiero cotizar esta musculosa`;
 
       // Try Web Share API with file (works on mobile → shares image directly to WhatsApp)
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
@@ -1067,10 +1067,10 @@ export default function JerseyCustomizer() {
                   {isGeneratingImage ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Preparando pedido...
+                      Preparando...
                     </>
                   ) : (
-                    "Hacer pedido →"
+                    "Contactanos →"
                   )}
                 </Button>
               </div>
@@ -1089,11 +1089,11 @@ export default function JerseyCustomizer() {
           {isGeneratingImage ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Preparando pedido...
+              Preparando...
             </>
           ) : (
             <>
-              Hacer pedido →
+              Contactanos →
             </>
           )}
         </Button>
