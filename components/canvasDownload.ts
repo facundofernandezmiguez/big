@@ -19,7 +19,7 @@ const FONT_FALLBACK_MAP: Record<FontOption, string> = {
 };
 
 function resolveFont(cssVar: string, fallback: string): string {
-  const val = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
+  const val = getComputedStyle(document.body).getPropertyValue(cssVar).trim();
   return val ? `${val}, ${fallback}` : fallback;
 }
 
@@ -79,13 +79,15 @@ export async function renderConfigToDataUrl(config: JerseyConfig, pixelRatio = 3
   const COL_W = (GRID_W - GAP_X) / 2; // 250px
   const JERSEY_ASPECT = imgH / tmpl.cropSw;
   const JERSEY_H = COL_W * JERSEY_ASPECT;
-  const LABEL_GAP = 4;
-  const LABEL_SIZE = 10;
-  const LABEL_ROW_H = LABEL_GAP + LABEL_SIZE + 4;
+  const LABEL_FONT_SIZE = 10;    // text-[10px]
+  const LABEL_MT = 4;            // mt-1 = 4px
+  const LABEL_LH = 14;           // 10px font * ~1.4 line-height
+  const LABEL_EXTRA = LABEL_MT + LABEL_LH; // 18px total added by label span
+  const CONTAINER_H = JERSEY_H + LABEL_EXTRA; // DOM container = jersey img + label
   const PAD = 20;
 
   const W = GRID_W + PAD * 2;
-  const H = PAD + JERSEY_H + LABEL_ROW_H + GAP_Y + JERSEY_H + LABEL_ROW_H + PAD;
+  const H = PAD + CONTAINER_H + GAP_Y + CONTAINER_H + PAD;
 
   const c = document.createElement("canvas");
   c.width = Math.round(W * pixelRatio);
@@ -99,7 +101,7 @@ export async function renderConfigToDataUrl(config: JerseyConfig, pixelRatio = 3
 
   // ─── Panel positions ───
   const row1Y = PAD;
-  const row2Y = PAD + JERSEY_H + LABEL_ROW_H + GAP_Y;
+  const row2Y = PAD + CONTAINER_H + GAP_Y;
 
   const panels = [
     { img: pf, x: PAD, y: row1Y, label: "LADO 1 - FRENTE", row: "primary", target: "front", textColor: config.letterColor },
@@ -146,7 +148,7 @@ export async function renderConfigToDataUrl(config: JerseyConfig, pixelRatio = 3
       ctx.fillStyle = p.textColor;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(el.text, p.x + (el.x / 100) * COL_W, p.y + (el.y / 100) * JERSEY_H);
+      ctx.fillText(el.text, p.x + (el.x / 100) * COL_W, p.y + (el.y / 100) * CONTAINER_H);
       ctx.restore();
     }
 
@@ -158,8 +160,10 @@ export async function renderConfigToDataUrl(config: JerseyConfig, pixelRatio = 3
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       const nx = p.x + COL_W / 2;
-      const ny = p.y + JERSEY_H * 0.51;
-      ctx.translate(nx, ny);
+      // DOM: top of number div at 51% of container, center = top + fontSize/2
+      const numTop = p.y + CONTAINER_H * 0.51;
+      const numCenter = numTop + NUM_SIZE * 0.5;
+      ctx.translate(nx, numCenter);
       ctx.scale(1, 1.15); // match CSS scaleY(1.15)
       ctx.fillText(config.number, 0, 0);
       ctx.restore();
@@ -169,9 +173,9 @@ export async function renderConfigToDataUrl(config: JerseyConfig, pixelRatio = 3
     if (p.row === "primary" && p.target === "front" && shieldImg) {
       const leftPct = config.shieldPosition === "left" ? 0.22 : config.shieldPosition === "center" ? 0.40 : 0.58;
       const boxX = p.x + COL_W * leftPct;
-      const boxY = p.y + JERSEY_H * 0.26;
+      const boxY = p.y + CONTAINER_H * 0.26;
       const boxW = COL_W * 0.22;
-      const boxH = JERSEY_H * 0.22;
+      const boxH = CONTAINER_H * 0.22;
       const cx = boxX + boxW / 2;
       const cy = boxY + boxH / 2;
       const sw = boxW * config.shieldSize;
@@ -194,18 +198,18 @@ export async function renderConfigToDataUrl(config: JerseyConfig, pixelRatio = 3
       ctx.drawImage(
         spImg,
         p.x + (sp.x / 100) * COL_W - spW / 2,
-        p.y + (sp.y / 100) * JERSEY_H - spH / 2,
+        p.y + (sp.y / 100) * CONTAINER_H - spH / 2,
         spW, spH
       );
     }
 
     // ── Label ──
     ctx.save();
-    ctx.font = `700 ${LABEL_SIZE}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
+    ctx.font = `700 ${LABEL_FONT_SIZE}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
     ctx.fillStyle = "rgba(0,0,0,0.4)";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.fillText(p.label, p.x + COL_W / 2, p.y + JERSEY_H + LABEL_GAP);
+    ctx.fillText(p.label, p.x + COL_W / 2, p.y + JERSEY_H + LABEL_MT);
     ctx.restore();
   }
 
