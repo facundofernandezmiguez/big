@@ -168,7 +168,7 @@ export function fillBodyInteriors(ctx: CanvasRenderingContext2D, w: number, h: n
   ctx.putImageData(imageData, 0, 0);
 }
 
-function getStaging(sketchType: SketchType = "clasica"): Promise<StagingEntry> {
+export function getStaging(sketchType: SketchType = "clasica"): Promise<StagingEntry> {
   if (_stagingCache[sketchType]) return Promise.resolve(_stagingCache[sketchType]);
   if (sketchType in _stagingPromises) return _stagingPromises[sketchType];
   const tmpl = TEMPLATE_CONFIGS[sketchType];

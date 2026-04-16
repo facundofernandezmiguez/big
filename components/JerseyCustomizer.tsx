@@ -9,7 +9,7 @@ import { Upload, Download, Loader2, X, Plus, GripVertical } from "lucide-react";
 import JerseyPreview from "./JerseyPreview";
 import { JerseyConfig, TextElement, SponsorElement, FontOption, SketchType } from "./types";
 import { removeBackground } from "@imgly/background-removal";
-import { toPng } from "html-to-image";
+import { renderConfigToDataUrl } from "./canvasDownload";
 
 export default function JerseyCustomizer() {
   const [config, setConfig] = useState<JerseyConfig>({
@@ -316,28 +316,9 @@ export default function JerseyCustomizer() {
   }, []);
 
   const handleDownload = useCallback(async () => {
-    const gridEl = jerseyGridRef.current;
-    if (!gridEl) return;
-
     setSelectedObject(null);
-
-    // Force desktop-like width so font sizes (grid-relative) are consistent
-    const origWidth = gridEl.style.width;
-    const origMaxWidth = gridEl.style.maxWidth;
-    gridEl.style.width = '520px';
-    gridEl.style.maxWidth = '520px';
-    // Wait for ResizeObserver → state update → React re-render
-    await new Promise(r => setTimeout(r, 300));
-
     try {
-      await document.fonts.ready;
-      // Call toPng twice: first call warms up font embedding cache
-      await toPng(gridEl, { backgroundColor: '#ffffff', pixelRatio: 1 }).catch(() => {});
-      const dataUrl = await toPng(gridEl, {
-        backgroundColor: '#ffffff',
-        pixelRatio: 3,
-      });
-
+      const dataUrl = await renderConfigToDataUrl(config);
       const firstText = config.textElements.find(el => el.text)?.text || "equipo";
       const link = document.createElement("a");
       link.download = `big-sportswear-${firstText}.png`;
@@ -345,36 +326,14 @@ export default function JerseyCustomizer() {
       link.click();
     } catch (err) {
       console.error("Download error:", err);
-    } finally {
-      gridEl.style.width = origWidth;
-      gridEl.style.maxWidth = origMaxWidth;
     }
-  }, [config.textElements]);
+  }, [config]);
 
   const handleWhatsAppOrder = useCallback(async () => {
     setIsGeneratingImage(true);
-    const gridEl = jerseyGridRef.current;
-    if (!gridEl) { setIsGeneratingImage(false); return; }
-
     setSelectedObject(null);
-
-    // Force desktop-like width so font sizes (grid-relative) are consistent
-    const origWidth = gridEl.style.width;
-    const origMaxWidth = gridEl.style.maxWidth;
-    gridEl.style.width = '520px';
-    gridEl.style.maxWidth = '520px';
-    // Wait for ResizeObserver → state update → React re-render
-    await new Promise(r => setTimeout(r, 300));
-
     try {
-      await document.fonts.ready;
-      // Call toPng twice: first call warms up font embedding cache
-      await toPng(gridEl, { backgroundColor: '#ffffff', pixelRatio: 1 }).catch(() => {});
-      const dataUrl = await toPng(gridEl, {
-        backgroundColor: '#ffffff',
-        pixelRatio: 3,
-      });
-
+      const dataUrl = await renderConfigToDataUrl(config);
       const firstText = config.textElements.find(el => el.text)?.text || "equipo";
       const fileName = `big-sportswear-${firstText}.png`;
 
@@ -410,8 +369,6 @@ export default function JerseyCustomizer() {
       console.error("WhatsApp Order error:", err);
       alert("Hubo un error al preparar el pedido. Por favor intenta de nuevo.");
     } finally {
-      gridEl.style.width = origWidth;
-      gridEl.style.maxWidth = origMaxWidth;
       setIsGeneratingImage(false);
     }
   }, [config]);
