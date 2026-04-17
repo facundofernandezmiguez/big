@@ -484,6 +484,7 @@ const JerseyPreview = forwardRef<HTMLDivElement, JerseyPreviewProps>(function Je
 
     const handleMove = (ev: MouseEvent | TouchEvent) => {
       if (!dragRef.current) return;
+      if ('touches' in ev) ev.preventDefault();
       const cx = 'touches' in ev ? ev.touches[0].clientX : (ev as MouseEvent).clientX;
       const cy = 'touches' in ev ? ev.touches[0].clientY : (ev as MouseEvent).clientY;
       const dx = cx - dragRef.current.startX;
@@ -564,6 +565,7 @@ const JerseyPreview = forwardRef<HTMLDivElement, JerseyPreviewProps>(function Je
               outline: isSelected ? "2px dashed rgba(59,130,246,0.8)" : "none",
               outlineOffset: "4px",
               borderRadius: "2px",
+              touchAction: "none",
             }}
             onMouseDown={(e) => onTextMove && handleDragStart(e, el, containerKey, onTextMove)}
             onTouchStart={(e) => {
@@ -596,6 +598,7 @@ const JerseyPreview = forwardRef<HTMLDivElement, JerseyPreviewProps>(function Je
               outline: isSelected ? "2px dashed rgba(59,130,246,0.8)" : "none",
               outlineOffset: "4px",
               borderRadius: "2px",
+              touchAction: "none",
             }}
             onMouseDown={(e) => onSponsorMove && handleDragStart(e, sp, containerKey, onSponsorMove)}
             onTouchStart={(e) => {
