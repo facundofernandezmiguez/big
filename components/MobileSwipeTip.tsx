@@ -3,14 +3,14 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 
-const STORAGE_KEY = "big-scroll-tip-dismissed";
+const SESSION_KEY = "big-scroll-tip-dismissed";
 
 export default function MobileSwipeTip() {
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    const wasDismissed = localStorage.getItem(STORAGE_KEY) === "true";
+    const wasDismissed = sessionStorage.getItem(SESSION_KEY) === "true";
     if (wasDismissed) {
       setDismissed(true);
       return;
@@ -21,7 +21,7 @@ export default function MobileSwipeTip() {
 
   const handleDismiss = () => {
     setVisible(false);
-    localStorage.setItem(STORAGE_KEY, "true");
+    sessionStorage.setItem(SESSION_KEY, "true");
     setTimeout(() => setDismissed(true), 300);
   };
 
