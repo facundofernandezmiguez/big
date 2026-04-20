@@ -37,6 +37,17 @@ export async function removeOuterBackground(file: File): Promise<Blob> {
   const original = originalData.data;
   const total = w * h;
 
+  // Step 0: kill the weak semi-transparent fringe the model leaves around the
+  // shield. Those partially transparent pixels keep a mix of the original
+  // (white-ish) background and show up as a dark halo over a dark jersey.
+  // Binarizing low alphas to 0 removes the halo cleanly.
+  const FRINGE_ALPHA = 128;
+  for (let i = 0; i < total; i++) {
+    if (pixels[i * 4 + 3] < FRINGE_ALPHA) {
+      pixels[i * 4 + 3] = 0;
+    }
+  }
+
   const ALPHA_THRESHOLD = 16;
   const isTransparent = (i: number) => pixels[i * 4 + 3] < ALPHA_THRESHOLD;
 
