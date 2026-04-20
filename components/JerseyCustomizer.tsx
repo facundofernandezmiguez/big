@@ -11,6 +11,7 @@ import { JerseyConfig, TextElement, SponsorElement, ShieldElement, FontOption, S
 import { removeBackground } from "@imgly/background-removal";
 import { removeOuterBackground } from "./shieldProcessing";
 import { renderConfigToDataUrl } from "./canvasDownload";
+import MobileSwipeTip from "./MobileSwipeTip";
 
 export default function JerseyCustomizer() {
   const [config, setConfig] = useState<JerseyConfig>({
@@ -373,6 +374,7 @@ export default function JerseyCustomizer() {
 
   return (
     <div className="min-h-screen bg-white text-black font-sans">
+      <MobileSwipeTip />
       {/* Header */}
       <header className="border-b border-black/10">
         <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
