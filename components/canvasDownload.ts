@@ -132,7 +132,7 @@ export async function renderConfigToDataUrl(config: JerseyConfig, pixelRatio = 3
 
   // ─── Font sizes (matching JerseyPreview at 520px grid width) ───
   const TEXT_BASE = Math.min(19.2, Math.max(8, GRID_W * 0.037));
-  const NUM_SIZE = Math.min(88, Math.max(32, GRID_W * 0.169));
+  const NUM_SIZE = Math.min(72, Math.max(28, GRID_W * 0.14));
 
   for (const p of panels) {
     // ── Text elements ──

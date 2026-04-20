@@ -465,9 +465,9 @@ const JerseyPreview = forwardRef<HTMLDivElement, JerseyPreviewProps>(function Je
   // At 520px grid (desktop): textBase = min(19.2, max(8, 520*0.037)) = 19.2px
   // At 350px grid (mobile):  textBase = min(19.2, max(8, 350*0.037)) = 12.95px
   const textBaseFontSize = Math.min(19.2, Math.max(8, gridWidth * 0.037));
-  // At 520px grid: numberFont = min(88, max(32, 520*0.169)) = 87.9px
-  // At 350px grid: numberFont = min(88, max(32, 350*0.169)) = 59.2px
-  const numberFontSize = Math.min(88, Math.max(32, gridWidth * 0.169));
+  // At 520px grid: numberFont = min(72, max(28, 520*0.14)) = 72px
+  // At 350px grid: numberFont = min(72, max(28, 350*0.14)) = 49px
+  const numberFontSize = Math.min(72, Math.max(28, gridWidth * 0.14));
 
   const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number; containerRect: DOMRect; origTarget: "front" | "back"; origRow?: "primary" | "secondary"; moveCb: (id: string, x: number, y: number, target?: "front" | "back", row?: "primary" | "secondary") => void } | null>(null);
   const containerRefs = useRef<Record<string, HTMLDivElement | null>>({});
