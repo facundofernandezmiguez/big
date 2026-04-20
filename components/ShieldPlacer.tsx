@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Download, Loader2, X, Hash, ArrowLeft } from "lucide-react";
-import { removeBackground } from "@imgly/background-removal";
+import { removeOuterBackground } from "./shieldProcessing";
 
 const GARMENT_IMAGES = [
   { id: "negro", src: "/negro.png", label: "Negro" },
@@ -72,7 +72,7 @@ export default function ShieldPlacer() {
 
       setIsRemovingBg(true);
       try {
-        const imageBlob = await removeBackground(file);
+        const imageBlob = await removeOuterBackground(file);
         const url = URL.createObjectURL(imageBlob);
         setShieldUrl(url);
       } catch (err: unknown) {
