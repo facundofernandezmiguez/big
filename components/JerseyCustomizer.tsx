@@ -9,6 +9,7 @@ import { Upload, Download, Loader2, X, Plus, GripVertical } from "lucide-react";
 import JerseyPreview from "./JerseyPreview";
 import { JerseyConfig, TextElement, SponsorElement, ShieldElement, FontOption, SketchType } from "./types";
 import { removeBackground } from "@imgly/background-removal";
+import { removeOuterBackground } from "./shieldProcessing";
 import { renderConfigToDataUrl } from "./canvasDownload";
 
 export default function JerseyCustomizer() {
@@ -150,7 +151,7 @@ export default function JerseyCustomizer() {
         url = URL.createObjectURL(file);
       } else {
         try {
-          const blob = await removeBackground(file);
+          const blob = await removeOuterBackground(file);
           url = URL.createObjectURL(blob);
         } catch {
           url = URL.createObjectURL(file);
