@@ -108,8 +108,66 @@ export async function removeOuterBackground(file: File): Promise<Blob> {
     }
 
     if (cornersUniform) {
-      const COLOR_TOLERANCE = 48;
+      const COLOR_TOLERANCE = 36;
       const colorThresh2 = COLOR_TOLERANCE * COLOR_TOLERANCE;
+
+      // Precompute a "wall" mask: pixels that sit on a strong color boundary
+      // (some 8-neighbor differs a lot) are treated as un-floodable. This
+      // prevents the flood from leaking into the shield interior through
+      // anti-aliased outline pixels whose color is an intermediate blend that
+      // happens to fall within `COLOR_TOLERANCE` of the background.
+      //
+      // 8-connectivity catches diagonal edges (e.g. thin outlines where the
+      // orthogonal pixel-to-pixel delta stays small but the diagonal one is
+      // huge). The mask is then dilated by 1 pixel so that any tiny gap in a
+      // 1-px outline (JPEG artifact, aliasing) is still sealed.
+      const WALL_TOLERANCE = 60;
+      const wallThresh2 = WALL_TOLERANCE * WALL_TOLERANCE;
+      const rawWall = new Uint8Array(total);
+      const NEIGHBOR_OFFSETS: Array<[number, number]> = [
+        [-1, 0], [1, 0], [0, -1], [0, 1],
+        [-1, -1], [1, -1], [-1, 1], [1, 1],
+      ];
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = y * w + x;
+          const p = idx * 4;
+          const r = original[p];
+          const g = original[p + 1];
+          const b = original[p + 2];
+          let maxD2 = 0;
+          for (const [dx, dy] of NEIGHBOR_OFFSETS) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+            const np = (ny * w + nx) * 4;
+            const dr = r - original[np];
+            const dg = g - original[np + 1];
+            const db = b - original[np + 2];
+            const d2 = dr * dr + dg * dg + db * db;
+            if (d2 > maxD2) maxD2 = d2;
+          }
+          if (maxD2 > wallThresh2) rawWall[idx] = 1;
+        }
+      }
+
+      // Dilate the wall mask by 1 pixel (8-connectivity) to seal single-pixel
+      // gaps left by compression / aliasing artifacts.
+      const isWall = new Uint8Array(total);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = y * w + x;
+          if (rawWall[idx]) { isWall[idx] = 1; continue; }
+          let near = false;
+          for (const [dx, dy] of NEIGHBOR_OFFSETS) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+            if (rawWall[ny * w + nx]) { near = true; break; }
+          }
+          if (near) isWall[idx] = 1;
+        }
+      }
 
       const colorBg = new Uint8Array(total);
       const cq = new Int32Array(total);
@@ -126,6 +184,7 @@ export async function removeOuterBackground(file: File): Promise<Blob> {
 
       const seedColor = (idx: number) => {
         if (colorBg[idx]) return;
+        if (isWall[idx]) return;
         if (!closeToBg(idx)) return;
         colorBg[idx] = 1;
         cq[cqTail++] = idx;

@@ -46,8 +46,8 @@ const anton = Anton({
 });
 
 export const metadata: Metadata = {
-  title: "BIG Sportswear — Personalizá tu remera",
-  description: "Personalizá tu top deportivo con el color, escudo y nombre de tu equipo.",
+  title: "BIG Sportswear — Personalizá tu indumentaria",
+  description: "Diseñá tu musculosa reversible o personalizá tu top y calza con el escudo y número de tu equipo.",
   icons: {
     icon: "/favicon.ico",
   },
