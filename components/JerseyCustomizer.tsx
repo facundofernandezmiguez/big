@@ -406,11 +406,12 @@ export default function JerseyCustomizer() {
           <div className="flex flex-col items-center gap-4 sm:gap-5 lg:sticky lg:top-4 lg:z-10 w-full bg-white pb-4 lg:pb-0">
             <div
               ref={previewRef}
-              className="relative w-[calc(100%-1.5rem)] sm:w-full mx-auto bg-[#f7f7f7] border border-black/8 flex items-center justify-center px-2 py-4 sm:p-8 min-h-[220px] sm:min-h-[500px] overflow-hidden"
+              className="relative w-[calc(100%-4.5rem)] sm:w-full mx-auto bg-[#f7f7f7] border border-black/8 flex items-center justify-center px-2 py-4 sm:p-8 min-h-[220px] sm:min-h-[500px] overflow-hidden"
               style={{ touchAction: "none" }}
               onClick={handleObjectDeselect}
             >
               <div
+                className="min-w-[340px] sm:min-w-0"
                 style={{
                   transform: `translate(${viewX}px, ${viewY}px) scale(${viewScale})`,
                   transformOrigin: "center",
