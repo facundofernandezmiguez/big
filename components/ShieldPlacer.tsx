@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Download, Loader2, X, Hash } from "lucide-react";
+import { Upload, Download, Loader2, X, Hash, ArrowLeft } from "lucide-react";
 import { removeBackground } from "@imgly/background-removal";
 
 const GARMENT_IMAGES = [
@@ -222,28 +223,23 @@ export default function ShieldPlacer() {
         }
       }
 
-      const numberInfo = numberValue && numberPlacement !== "none"
-        ? ` - Número: ${numberValue} (${numberPlacement === "both" ? "top y calza" : numberPlacement})`
-        : "";
+      const fileName = `big-sportswear-top-calza-${selectedImage.id}.png`;
 
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        const text = encodeURIComponent(
-          `Hola! Quiero hacer un pedido de indumentaria con este escudo. Modelo: ${selectedImage.label}${numberInfo}`
-        );
-        const whatsappUrl = `https://wa.me/5491168370076?text=${text}`;
+      // Download image so the user can attach it
+      const link = document.createElement("a");
+      link.download = fileName;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
 
-        if (navigator.share && navigator.canShare({ files: [new File([blob], "pedido-big.png", { type: "image/png" })] })) {
-          const file = new File([blob], "pedido-big.png", { type: "image/png" });
-          navigator.share({ files: [file], text: `Pedido BIG - Modelo ${selectedImage.label}${numberInfo}` }).catch(() => {
-            window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-          });
-        } else {
-          window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-        }
-      }, "image/png");
-
+      // Open WhatsApp conversation directly with the number and message
+      const message = `Hola! Quiero cotizar este top y calza.`;
+      const phone = "5491126237532";
+      const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message + "\n\nTe adjunto la imagen con el diseño.")}`;
+      setTimeout(() => {
+        window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      }, 500);
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
       console.error("WhatsApp order error:", err);
       alert("Hubo un error al preparar el pedido. Por favor intenta de nuevo.");
     } finally {
@@ -261,20 +257,30 @@ export default function ShieldPlacer() {
     <div className="min-h-screen bg-white text-black font-sans">
       {/* Header */}
       <header className="border-b border-black/10">
-        <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
-          <a
-            href="https://www.bigsportswear.com.ar/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex flex-col leading-none"
-          >
-            <span className="text-xl font-black tracking-widest uppercase">BIG</span>
-            <span className="text-[10px] font-semibold tracking-[0.3em] uppercase text-black/50">
-              Sportswear
-            </span>
-          </a>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold tracking-[0.2em] uppercase text-black/45 hover:text-black transition-colors flex-shrink-0"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Volver
+            </Link>
+            <span className="w-px h-5 bg-black/10 flex-shrink-0" />
+            <a
+              href="https://www.bigsportswear.com.ar/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col leading-none min-w-0"
+            >
+              <span className="text-lg sm:text-xl font-black tracking-widest uppercase">BIG</span>
+              <span className="text-[10px] font-semibold tracking-[0.3em] uppercase text-black/50">
+                Sportswear
+              </span>
+            </a>
+          </div>
           <span className="text-xs font-semibold tracking-[0.2em] uppercase text-black/35 hidden sm:block">
-            Personalizá tu prenda
+            Top y Calza
           </span>
         </div>
       </header>
@@ -434,90 +440,86 @@ export default function ShieldPlacer() {
             {/* Step 2 — Upload shield */}
             <div>
               <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase mb-3">
-                02 — Subí el escudo
+                02 — Escudo del club
               </h2>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleShieldUpload}
-                className="hidden"
-                id="shield-upload"
-              />
-              {!shieldUrl ? (
-                <label
-                  htmlFor="shield-upload"
-                  className="flex items-center justify-center gap-2 border border-dashed border-black/20 p-3 cursor-pointer hover:border-black/50 hover:bg-black/[0.015] transition-all"
-                >
-                  {isRemovingBg ? (
-                    <>
-                      <Loader2 className="w-5 h-5 text-black/40 animate-spin" />
-                      <p className="text-[11px] text-black/45 font-medium">Procesando...</p>
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-5 h-5 text-black/25" />
-                      <p className="text-xs font-semibold text-black/60 tracking-wide">
-                        Subir escudo del club
+              <div className="flex flex-col gap-2 bg-[#f7f7f7] border border-black/8 p-4 sm:p-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleShieldUpload}
+                  className="hidden"
+                  id="shield-upload"
+                />
+                {!shieldUrl ? (
+                  <label
+                    htmlFor="shield-upload"
+                    className="flex items-center justify-center gap-2 border border-dashed border-black/20 p-3 cursor-pointer hover:border-black/50 hover:bg-black/[0.015] transition-all"
+                  >
+                    {isRemovingBg ? (
+                      <>
+                        <Loader2 className="w-5 h-5 text-black/40 animate-spin" />
+                        <p className="text-[11px] text-black/45 font-medium">Procesando...</p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-5 h-5 text-black/25" />
+                        <p className="text-xs font-semibold text-black/60 tracking-wide">
+                          Subir escudo
+                        </p>
+                      </>
+                    )}
+                  </label>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white border border-black/8 flex items-center justify-center flex-shrink-0">
+                        <img
+                          src={shieldUrl}
+                          alt="Escudo"
+                          className="w-8 h-8 object-contain"
+                        />
+                      </div>
+                      <p className="text-xs font-semibold truncate text-black/70 flex-1">
+                        {shieldFileName ?? "Escudo cargado"}
                       </p>
-                    </>
-                  )}
-                </label>
-              ) : (
-                <div className="flex items-center gap-3 border border-black/10 p-3 bg-black/[0.015]">
-                  <div className="w-10 h-10 bg-white border border-black/8 flex items-center justify-center flex-shrink-0">
-                    <img
-                      src={shieldUrl}
-                      alt="Escudo"
-                      className="w-8 h-8 object-contain"
-                    />
-                  </div>
-                  <p className="text-xs font-semibold truncate text-black/70 flex-1">
-                    {shieldFileName ?? "Escudo cargado"}
-                  </p>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-[10px] text-black/40 hover:text-black/70 underline flex-shrink-0"
-                  >
-                    Cambiar
-                  </button>
-                  <button
-                    onClick={handleRemoveShield}
-                    className="text-black/25 hover:text-red-500 transition-colors p-1 flex-shrink-0"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-[10px] text-black/40 hover:text-black/70 underline flex-shrink-0"
+                      >
+                        Cambiar
+                      </button>
+                      <button
+                        onClick={handleRemoveShield}
+                        className="text-black/25 hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Shield Size */}
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] text-black/40 whitespace-nowrap">Tamaño</span>
+                      <input
+                        type="range"
+                        min={SHIELD_WIDTH_PCT_MIN}
+                        max={SHIELD_WIDTH_PCT_MAX}
+                        value={shieldWidthPct}
+                        onChange={(e) => setShieldWidthPct(Number(e.target.value))}
+                        className="flex-1 h-1 accent-black cursor-pointer"
+                      />
+                      <span className="text-[10px] text-black/40 w-10 text-right tabular-nums">{shieldWidthPct}%</span>
+                    </div>
+                    <p className="text-[10px] text-black/40 mt-1">
+                      El escudo se ubica automáticamente en el lado derecho del top y la calza.
+                    </p>
+                  </>
+                )}
+              </div>
               {removeBgError && (
                 <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 mt-2">
                   ⚠ {removeBgError}. Se usó la imagen original.
                 </p>
-              )}
-              {shieldUrl && (
-                <>
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-[10px] font-semibold tracking-[0.15em] uppercase text-black/45">
-                        Tamaño del escudo
-                      </p>
-                      <span className="text-[10px] font-bold text-black/50 tabular-nums">
-                        {shieldWidthPct}%
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={SHIELD_WIDTH_PCT_MIN}
-                      max={SHIELD_WIDTH_PCT_MAX}
-                      value={shieldWidthPct}
-                      onChange={(e) => setShieldWidthPct(Number(e.target.value))}
-                      className="w-full h-1.5 bg-black/10 appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-black [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
-                    />
-                  </div>
-                  <p className="text-[10px] text-black/40 mt-2">
-                    El escudo se ubica automáticamente en el lado derecho del top y la calza.
-                  </p>
-                </>
               )}
             </div>
 
@@ -599,7 +601,7 @@ export default function ShieldPlacer() {
                 ) : (
                   <Download className="w-4 h-4" />
                 )}
-                Descargar imagen
+                Descargar previsualización
               </Button>
               <Button
                 onClick={handleWhatsAppOrder}
@@ -609,10 +611,10 @@ export default function ShieldPlacer() {
                 {isGeneratingImage ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Preparando pedido...
+                    Preparando...
                   </>
                 ) : (
-                  "Hacer pedido →"
+                  "Contactanos →"
                 )}
               </Button>
             </div>
@@ -631,10 +633,10 @@ export default function ShieldPlacer() {
             {isGeneratingImage ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Preparando pedido...
+                Preparando...
               </>
             ) : (
-              "Hacer pedido →"
+              "Contactanos →"
             )}
           </Button>
         </div>

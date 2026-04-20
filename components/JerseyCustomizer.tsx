@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Upload, Download, Loader2, X, Plus, GripVertical } from "lucide-react";
+import Link from "next/link";
+import { Upload, Download, Loader2, X, Plus, GripVertical, ArrowLeft } from "lucide-react";
 import JerseyPreview from "./JerseyPreview";
 import { JerseyConfig, TextElement, SponsorElement, ShieldElement, FontOption, SketchType } from "./types";
 import { removeBackground } from "@imgly/background-removal";
-import { removeOuterBackground } from "./shieldProcessing";
 import { renderConfigToDataUrl } from "./canvasDownload";
 import MobileSwipeTip from "./MobileSwipeTip";
 
@@ -152,7 +152,7 @@ export default function JerseyCustomizer() {
         url = URL.createObjectURL(file);
       } else {
         try {
-          const blob = await removeOuterBackground(file);
+          const blob = await removeBackground(file);
           url = URL.createObjectURL(blob);
         } catch {
           url = URL.createObjectURL(file);
@@ -377,20 +377,30 @@ export default function JerseyCustomizer() {
       <MobileSwipeTip />
       {/* Header */}
       <header className="border-b border-black/10">
-        <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
-          <a
-            href="https://www.bigsportswear.com.ar/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex flex-col leading-none"
-          >
-            <span className="text-xl font-black tracking-widest uppercase">BIG</span>
-            <span className="text-[10px] font-semibold tracking-[0.3em] uppercase text-black/50">
-              Sportswear
-            </span>
-          </a>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold tracking-[0.2em] uppercase text-black/45 hover:text-black transition-colors flex-shrink-0"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Volver
+            </Link>
+            <span className="w-px h-5 bg-black/10 flex-shrink-0" />
+            <a
+              href="https://www.bigsportswear.com.ar/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col leading-none min-w-0"
+            >
+              <span className="text-lg sm:text-xl font-black tracking-widest uppercase">BIG</span>
+              <span className="text-[10px] font-semibold tracking-[0.3em] uppercase text-black/50">
+                Sportswear
+              </span>
+            </a>
+          </div>
           <span className="text-xs font-semibold tracking-[0.2em] uppercase text-black/35 hidden sm:block">
-            Personalizador de Remeras
+            Musculosa Reversible
           </span>
         </div>
       </header>

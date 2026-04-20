@@ -45,9 +45,9 @@ export default function Home() {
       {/* Options */}
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 sm:px-6 pb-12 sm:pb-20">
         <div className="flex flex-col gap-3 sm:gap-4">
-          {/* Musculosa reversible */}
+          {/* Top y Calza */}
           <Link
-            href="/musculosa-reversible"
+            href="/top-calza"
             className="group relative flex items-center justify-between gap-4 border border-black/15 bg-white px-5 sm:px-8 py-5 sm:py-7 hover:border-black hover:bg-black hover:text-white transition-all duration-200"
           >
             <div className="flex items-center gap-4 sm:gap-6 min-w-0">
@@ -56,19 +56,19 @@ export default function Home() {
               </span>
               <div className="min-w-0">
                 <h2 className="text-base sm:text-xl font-black tracking-wider uppercase leading-tight">
-                  Musculosa Reversible
+                  Top y Calza
                 </h2>
                 <p className="text-[11px] sm:text-xs text-black/50 group-hover:text-white/60 mt-1 tracking-wide">
-                  Diseñá tu boceto: colores, escudos, sponsors y nombre.
+                  Elegí el color, sumá el escudo y el número de tu equipo.
                 </p>
               </div>
             </div>
             <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 group-hover:translate-x-1 transition-transform" />
           </Link>
 
-          {/* Top y Calza */}
+          {/* Musculosa reversible */}
           <Link
-            href="/top-calza"
+            href="/musculosa-reversible"
             className="group relative flex items-center justify-between gap-4 border border-black/15 bg-white px-5 sm:px-8 py-5 sm:py-7 hover:border-black hover:bg-black hover:text-white transition-all duration-200"
           >
             <div className="flex items-center gap-4 sm:gap-6 min-w-0">
@@ -77,10 +77,10 @@ export default function Home() {
               </span>
               <div className="min-w-0">
                 <h2 className="text-base sm:text-xl font-black tracking-wider uppercase leading-tight">
-                  Top y Calza
+                  Musculosa Reversible
                 </h2>
                 <p className="text-[11px] sm:text-xs text-black/50 group-hover:text-white/60 mt-1 tracking-wide">
-                  Elegí el color, sumá el escudo y el número de tu equipo.
+                  Diseñá tu boceto: colores, escudos, sponsors y nombre.
                 </p>
               </div>
             </div>
