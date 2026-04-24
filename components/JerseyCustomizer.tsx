@@ -331,6 +331,13 @@ export default function JerseyCustomizer() {
       link.download = `big-sportswear-${firstText}.png`;
       link.href = dataUrl;
       link.click();
+      
+      if (typeof window !== "undefined" && (window as any).umami) {
+        (window as any).umami.track("boceto_descargado", {
+          prenda: "musculosa-reversible",
+          nombre_equipo: firstText,
+        });
+      }
     } catch (err) {
       console.error("Download error:", err);
     }
@@ -357,6 +364,13 @@ export default function JerseyCustomizer() {
       link.download = fileName;
       link.href = dataUrl;
       link.click();
+      
+      if (typeof window !== "undefined" && (window as any).umami) {
+        (window as any).umami.track("whatsapp_click", {
+          prenda: "musculosa-reversible",
+          nombre_equipo: firstText,
+        });
+      }
 
       // Open WhatsApp conversation directly with the number and message
       const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message + "\n\nTe adjunto la imagen con el diseño.")}`;

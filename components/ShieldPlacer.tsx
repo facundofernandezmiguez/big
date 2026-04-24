@@ -169,6 +169,15 @@ export default function ShieldPlacer() {
       link.download = `big-escudo-${selectedImage.id}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
+      
+      if (typeof window !== "undefined" && (window as any).umami) {
+        (window as any).umami.track("boceto_descargado", {
+          prenda: "top-calza",
+          color: selectedImage.id,
+          tiene_escudo: !!shieldUrl,
+          tiene_numero: !!numberValue,
+        });
+      }
     } catch (err) {
       console.error("Download error:", err);
     } finally {
@@ -230,6 +239,15 @@ export default function ShieldPlacer() {
       link.download = fileName;
       link.href = canvas.toDataURL("image/png");
       link.click();
+      
+      if (typeof window !== "undefined" && (window as any).umami) {
+        (window as any).umami.track("whatsapp_click", {
+          prenda: "top-calza",
+          color: selectedImage.id,
+          tiene_escudo: !!shieldUrl,
+          tiene_numero: !!numberValue,
+        });
+      }
 
       // Open WhatsApp conversation directly with the number and message
       const message = `Hola! Quiero cotizar este top y calza.`;
